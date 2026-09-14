@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiRequest, ApiError, errorMessage } from '@/lib/api'
-import type { AuthInput, RegisterInput } from '@/pages/AuthPage'
+import type { LoginInput, RegisterInput } from '@/pages/AuthPage'
 
 export type AuthUser = {
   id: number
@@ -55,9 +55,9 @@ export function useAuth() {
     finally { setIsAuthLoading(false) }
   }
 
-  async function authenticate(endpoint: string, input: AuthInput) {
+  async function authenticate(endpoint: string, input: LoginInput | RegisterInput) {
     try {
-      const body = endpoint === 'register' ? input : { email: input.email, password: input.password }
+      const body = endpoint === 'register' ? input : { email: input.email, password: input.password, captchaToken: input.captchaToken }
       const result = await apiRequest<UserResponse>(`/auth/${endpoint}.php`, { method: 'POST', body })
       setUser(result.user)
       return null
@@ -76,5 +76,5 @@ export function useAuth() {
   }
 
   const status = isAuthLoading ? 'loading' : !user ? 'unauthenticated' : user.emailVerified === true ? 'authenticated_verified' : 'authenticated_unverified'
-  return { user, status, isAuthLoading, initialError, retry, login: (input: AuthInput) => authenticate('login', input), register: (input: RegisterInput) => input.captchaToken?.trim() ? authenticate('register', input) : Promise.resolve('Bot verification failed. Please try again.'), logout, refreshUser, resendVerification }
+  return { user, status, isAuthLoading, initialError, retry, login: (input: LoginInput) => input.captchaToken?.trim() ? authenticate('login', input) : Promise.resolve('Bot verification failed. Please try again.'), register: (input: RegisterInput) => input.captchaToken?.trim() ? authenticate('register', input) : Promise.resolve('Bot verification failed. Please try again.'), logout, refreshUser, resendVerification }
 }

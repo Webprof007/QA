@@ -11,11 +11,13 @@ export type AuthInput = {
   password: string
 }
 
+export type LoginInput = Pick<AuthInput, 'email' | 'password'> & { captchaToken: string }
+
 export type RegisterInput = AuthInput & { captchaToken: string }
 
 type Props = {
   onForgotPassword: () => void
-  onLogin: (input: AuthInput) => Promise<string | null>
+  onLogin: (input: LoginInput) => Promise<string | null>
   onRegister: (input: RegisterInput) => Promise<string | null>
 }
 
@@ -23,6 +25,7 @@ export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
   const [registering, setRegistering] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [emailValid, setEmailValid] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
@@ -32,7 +35,7 @@ export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (pending || (registering && !captchaToken)) return
+    if (pending || !captchaToken || (!registering && (!emailValid || !password))) return
     setError('')
     if (registering && !name.trim()) {
       setError('Введіть ім’я.')
@@ -45,10 +48,10 @@ export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
     setPending(true)
     try {
       const input = { name: name.trim(), email: email.trim().toLowerCase(), password }
-      const message = await (registering ? onRegister({ ...input, captchaToken: captchaToken! }) : onLogin(input))
-      if (message) { setError(message); if (registering) captcha.current?.reset() }
+      const message = await (registering ? onRegister({ ...input, captchaToken: captchaToken! }) : onLogin({ email: input.email, password, captchaToken }))
+      if (message) { setError(message); setCaptchaToken(null); captcha.current?.reset() }
     } catch {
-      if (registering) captcha.current?.reset()
+      setCaptchaToken(null); captcha.current?.reset()
       setError('Не вдалося виконати запит. Спробуйте ще раз.')
     } finally {
       setPending(false)
@@ -78,7 +81,7 @@ export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
             )}
             <div className="auth-field">
               <label htmlFor="auth-email">Email</label>
-              <Input id="auth-email" type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} />
+              <Input id="auth-email" type="email" autoComplete="username" required value={email} onChange={event => { setEmail(event.target.value); setEmailValid(event.target.validity.valid) }} />
             </div>
             <div className="auth-field">
               <label htmlFor="auth-password">Пароль</label>
@@ -92,9 +95,9 @@ export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
                 <PasswordInput id="auth-confirmation"  autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} />
               </div>
             )}
-            {registering && <TurnstileWidget ref={captcha} onTokenChange={setCaptchaToken} />}
+            <TurnstileWidget key={registering ? 'register' : 'login'} ref={captcha} onTokenChange={setCaptchaToken} />
             {error && <p role="alert" className="auth-error">{error}</p>}
-            <Button type="submit" disabled={pending || (registering && !captchaToken)} className="auth-submit">{pending ? 'Зачекайте…' : registering ? 'Зареєструватися' : 'Увійти'}</Button>
+            <Button type="submit" disabled={pending || !captchaToken || (!registering && (!emailValid || !password))} className="auth-submit">{pending ? 'Зачекайте…' : registering ? 'Зареєструватися' : 'Увійти'}</Button>
           </fieldset>
         </form>
         <Button variant="link" onClick={switchMode} disabled={pending} className="auth-switch">

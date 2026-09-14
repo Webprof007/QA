@@ -22,7 +22,7 @@ const guest = () => response({ success: false, message: 'Unauthorized' }, 401)
 const ok = (verified = true) => response({ success: true, user: { ...user, emailVerified: verified } })
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
-const loginForm = () => { change('Email', user.email); change('Пароль', 'password123'); click('Увійти') }
+const loginForm = async () => { change('Email', user.email); change('Пароль', 'password123'); await passCaptcha(); click('Увійти') }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.history.replaceState(null, '', '/') })
 
 describe('PHP session authentication', () => {
@@ -72,15 +72,15 @@ describe('PHP session authentication', () => {
       .mockResolvedValueOnce(response({ success: true })).mockResolvedValueOnce(ok(false))
       .mockResolvedValueOnce(response({ success: true }))
     vi.stubGlobal('fetch', fetchMock)
-    render(<App />); await screen.findByLabelText('Email'); loginForm()
+    render(<App />); await screen.findByLabelText('Email'); await loginForm()
     await screen.findByText(user.name); click('Вийти')
     expect((await screen.findByRole('alert')).textContent).toBe('Logout failed')
     expect(screen.getByText(user.name)).toBeTruthy()
-    click('Вийти'); await screen.findByLabelText('Email'); loginForm()
+    click('Вийти'); await screen.findByLabelText('Email'); await loginForm()
     await screen.findByRole('heading', { name: 'Check your email' }); click('Logout')
     await screen.findByLabelText('Email')
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/auth/logout.php'), expect.objectContaining({ method: 'POST', credentials: 'include' }))
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/auth/login.php'), expect.objectContaining({ body: JSON.stringify({ email: user.email, password: 'password123' }) }))
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/auth/login.php'), expect.objectContaining({ body: JSON.stringify({ email: user.email, password: 'password123', captchaToken: 'captcha-test-token' }) }))
   })
 
   it('checks me after resend reports already verified', async () => {
@@ -107,9 +107,9 @@ describe('PHP session authentication', () => {
     render(<App />)
     expect((await screen.findByRole('alert')).textContent).not.toContain('technical stack')
     expect(screen.queryByLabelText('Email')).toBeNull()
-    click('Спробувати ще раз'); await screen.findByLabelText('Email'); loginForm()
+    click('Спробувати ще раз'); await screen.findByLabelText('Email'); await loginForm()
     expect((await screen.findByRole('alert')).textContent).toBe('Invalid credentials')
-    loginForm()
+    await loginForm()
     expect((await screen.findByRole('alert')).textContent).toContain('Не вдалося виконати запит')
   })
   it('disables registration while pending and displays duplicate-email API errors', async () => {
@@ -140,7 +140,7 @@ describe('PHP session authentication', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(guest()).mockResolvedValueOnce(response({ success: false, message: 'Bot verification failed. Please try again.' }, 403))
     vi.stubGlobal('fetch', fetchMock)
     render(<App />); await screen.findByLabelText('Email')
-    expect(renderCaptcha).not.toHaveBeenCalled()
+    await waitFor(() => expect(renderCaptcha).toHaveBeenCalled())
     click('Створити обліковий запис')
     change('Ім’я', user.name); change('Email', user.email); change('Пароль', 'password123'); change('Повторіть пароль', 'password123')
     const submit = screen.getByRole('button', { name: 'Зареєструватися' }) as HTMLButtonElement
@@ -158,15 +158,54 @@ describe('PHP session authentication', () => {
     await passCaptcha(); expect(submit.disabled).toBe(false)
   })
 
-  it('shows missing-key configuration error without blocking login', async () => {
+  it('shows missing-key configuration error and blocks login and registration', async () => {
     vi.stubEnv('VITE_TURNSTILE_SITE_KEY', '')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(guest()).mockResolvedValueOnce(ok()))
     render(<App />); await screen.findByLabelText('Email'); click('Створити обліковий запис')
     expect(screen.getByRole('alert').textContent).toContain('VITE_TURNSTILE_SITE_KEY')
     expect((screen.getByRole('button', { name: 'Зареєструватися' }) as HTMLButtonElement).disabled).toBe(true)
-    click('Уже є обліковий запис? Увійти'); loginForm()
-    expect(await screen.findByText(user.name)).toBeTruthy()
+    click('Уже є обліковий запис? Увійти')
+    expect((screen.getByRole('button', { name: 'Увійти' }) as HTMLButtonElement).disabled).toBe(true)
     expect(renderCaptcha).not.toHaveBeenCalled()
+  })
+
+  it.each([401, 403, 422, 500])('resets Login CAPTCHA after HTTP %s and prevents token reuse', async status => {
+    const storage = vi.spyOn(Storage.prototype, 'setItem')
+    const message = status === 401 ? 'Invalid email or password' : status === 403 ? 'Bot verification failed. Please try again.' : 'Login failed'
+    const fetchMock = vi.fn().mockResolvedValueOnce(guest()).mockResolvedValueOnce(response({ success: false, message }, status)).mockResolvedValueOnce(ok())
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />); await screen.findByLabelText('Email')
+    await loginForm()
+    expect((await screen.findByRole('alert')).textContent).toBe(message)
+    expect(resetCaptcha).toHaveBeenCalledWith('widget-1')
+    const button = screen.getByRole('button', { name: 'Увійти' }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    fireEvent.submit(button.closest('form')!)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await passCaptcha(); click('Увійти')
+    expect(await screen.findByText(user.name)).toBeTruthy()
+    expect(storage).not.toHaveBeenCalled()
+    storage.mockRestore()
+  })
+
+  it('requires valid email, password and CAPTCHA, and blocks on expiration or error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(guest())
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />); await screen.findByLabelText('Email')
+    const button = () => screen.getByRole('button', { name: 'Увійти' }) as HTMLButtonElement
+    await waitFor(() => expect(renderCaptcha).toHaveBeenCalled())
+    expect(button().disabled).toBe(true)
+    change('Email', user.email); change('Пароль', 'password123')
+    expect(button().disabled).toBe(true)
+    fireEvent.submit(button().closest('form')!); expect(fetchMock).toHaveBeenCalledTimes(1)
+    await passCaptcha(); expect(button().disabled).toBe(false)
+    change('Email', 'invalid'); expect(button().disabled).toBe(true)
+    change('Email', ''); expect(button().disabled).toBe(true)
+    change('Email', user.email); change('Пароль', ''); expect(button().disabled).toBe(true)
+    change('Пароль', 'password123'); expect(button().disabled).toBe(false)
+    act(() => widgetOptions['expired-callback']()); expect(button().disabled).toBe(true)
+    await passCaptcha()
+    act(() => widgetOptions['error-callback']()); expect(button().disabled).toBe(true)
   })
 
 })
