@@ -13,6 +13,7 @@ import { SmokePage } from '@/pages/SmokePage'
 import { SmokeSuitesPage } from '@/pages/SmokeSuitesPage'
 import { SmokeSuiteDialog } from '@/components/SmokeSuiteDialog'
 import { AuditPage } from '@/pages/AuditPage'
+import { PasswordRecoveryPage } from '@/pages/PasswordRecoveryPage'
 import { AuthPage } from '@/pages/AuthPage'
 import { initialAuditAreas, initialAuditTypes, initialAuditByProject } from '@/data/auditMockData'
 import type { AuditItem, TestCasesProjectState, Page, Project, SmokeSuite, SmokeSuiteState } from '@/types'
@@ -23,9 +24,21 @@ import { errorMessage } from '@/lib/api'
 
 function App() {
   const auth = useAuth()
+  const [recovery, setRecovery] = useState<'forgot' | 'reset' | 'login' | null>(() => new URLSearchParams(window.location.search).has('resetPassword') ? 'reset' : null)
+  const loginPage = <AuthPage onForgotPassword={() => setRecovery('forgot')} onLogin={async input => {
+    const error = await auth.login(input)
+    if (!error) setRecovery(null)
+    return error
+  }} onRegister={async input => {
+    const error = await auth.register(input)
+    if (!error) setRecovery(null)
+    return error
+  }} />
+  // Recovery UI takes precedence over session state; it never logs the user out.
+  if (recovery === 'reset' || recovery === 'forgot') return <PasswordRecoveryPage key={recovery} mode={recovery} onLogin={() => setRecovery('login')} onForgot={() => setRecovery('forgot')} />
   if (auth.isAuthLoading) return <main className="auth-page"><p role="status">Завантаження…</p></main>
   if (auth.initialError) return <main className="auth-page"><div className="auth-content"><p role="alert" className="auth-error">{auth.initialError}</p><Button onClick={() => void auth.retry()}>Спробувати ще раз</Button></div></main>
-  if (!auth.user) return <AuthPage onLogin={auth.login} onRegister={auth.register} />
+  if (recovery === 'login' || !auth.user) return loginPage
   if (auth.status === 'authenticated_unverified') return <CheckEmailPage auth={auth} />
   return <QAApp key={auth.user.id} currentUser={auth.user} onLogout={auth.logout} />
 }

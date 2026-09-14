@@ -13,11 +13,12 @@ export type AuthInput = {
 export type RegisterInput = AuthInput & { captchaToken: string }
 
 type Props = {
+  onForgotPassword: () => void
   onLogin: (input: AuthInput) => Promise<string | null>
   onRegister: (input: RegisterInput) => Promise<string | null>
 }
 
-export function AuthPage({ onLogin, onRegister }: Props) {
+export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
   const [registering, setRegistering] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -82,6 +83,7 @@ export function AuthPage({ onLogin, onRegister }: Props) {
               <label htmlFor="auth-password">Пароль</label>
               <Input id="auth-password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 8 : undefined} value={password} onChange={event => setPassword(event.target.value)} aria-describedby={registering ? 'password-hint' : undefined} />
               {registering && <p id="password-hint" className="auth-hint">Щонайменше 8 символів.</p>}
+              {!registering && <Button type="button" variant="link" className="auth-forgot" disabled={pending} onClick={onForgotPassword}>Забули пароль?</Button>}
             </div>
             {registering && (
               <div className="auth-field">
