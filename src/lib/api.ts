@@ -32,8 +32,8 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
 
 export const errorMessage = (error: unknown) => error instanceof ApiError ? error.message : 'Не вдалося виконати запит. Спробуйте ще раз.'
 
-export function forgotPassword(email: string) {
-  return apiRequest<{ success: true; message: string }>('/auth/forgot-password.php', { method: 'POST', body: { email } })
+export function forgotPassword(input: { email: string; captchaToken: string }) {
+  return apiRequest<{ success: true; message: string }>('/auth/forgot-password.php', { method: 'POST', body: input })
 }
 
 export function resetPassword(input: { token: string; password: string }) {

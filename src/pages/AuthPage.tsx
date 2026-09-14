@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 import './AuthPage.css'
 import { TurnstileWidget, type TurnstileHandle } from '@/components/auth/TurnstileWidget'
 
@@ -81,14 +82,14 @@ export function AuthPage({ onLogin, onRegister, onForgotPassword }: Props) {
             </div>
             <div className="auth-field">
               <label htmlFor="auth-password">Пароль</label>
-              <Input id="auth-password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 8 : undefined} value={password} onChange={event => setPassword(event.target.value)} aria-describedby={registering ? 'password-hint' : undefined} />
+              <PasswordInput key={registering ? 'register-password' : 'login-password'} id="auth-password"  autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 8 : undefined} value={password} onChange={event => setPassword(event.target.value)} aria-describedby={registering ? 'password-hint' : undefined} />
               {registering && <p id="password-hint" className="auth-hint">Щонайменше 8 символів.</p>}
               {!registering && <Button type="button" variant="link" className="auth-forgot" disabled={pending} onClick={onForgotPassword}>Забули пароль?</Button>}
             </div>
             {registering && (
               <div className="auth-field">
                 <label htmlFor="auth-confirmation">Повторіть пароль</label>
-                <Input id="auth-confirmation" type="password" autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} />
+                <PasswordInput id="auth-confirmation"  autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} />
               </div>
             )}
             {registering && <TurnstileWidget ref={captcha} onTokenChange={setCaptchaToken} />}

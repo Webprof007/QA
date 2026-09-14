@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 import { ApiError, errorMessage, forgotPassword, resetPassword } from '@/lib/api'
 import './AuthPage.css'
+import { TurnstileWidget, type TurnstileHandle } from '@/components/auth/TurnstileWidget'
 
 function clearResetParameter() {
   const url = new URL(window.location.href)
@@ -13,6 +15,9 @@ function clearResetParameter() {
 export function PasswordRecoveryPage({ mode, onLogin, onForgot }: { mode: 'forgot' | 'reset'; onLogin: () => void; onForgot: () => void }) {
   const [token, setToken] = useState(() => mode === 'reset' ? new URLSearchParams(window.location.search).get('resetPassword') ?? '' : '')
   const [email, setEmail] = useState('')
+  const [emailValid, setEmailValid] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const captcha = useRef<TurnstileHandle>(null)
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [pending, setPending] = useState(false)
@@ -22,7 +27,7 @@ export function PasswordRecoveryPage({ mode, onLogin, onForgot }: { mode: 'forgo
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (pending || result) return
+    if (pending || result || (mode === 'forgot' && (!emailValid || !captchaToken))) return
     setError('')
     if (mode === 'reset') {
       if (password.length < 8) { setError('Пароль має містити щонайменше 8 символів.'); return }
@@ -33,7 +38,8 @@ export function PasswordRecoveryPage({ mode, onLogin, onForgot }: { mode: 'forgo
     setPending(true)
     try {
       if (mode === 'forgot') {
-        await forgotPassword(email.trim())
+        await forgotPassword({ email: email.trim(), captchaToken: captchaToken! })
+        setCaptchaToken(null)
         setResult('sent')
       } else {
         await resetPassword({ token, password })
@@ -41,6 +47,7 @@ export function PasswordRecoveryPage({ mode, onLogin, onForgot }: { mode: 'forgo
         setResult('changed')
       }
     } catch (error) {
+      if (mode === 'forgot') { setCaptchaToken(null); captcha.current?.reset() }
       if (mode === 'reset' && error instanceof ApiError && error.status === 400) {
         setToken(''); setPassword(''); setConfirmation(''); clearResetParameter(); setResult('invalid')
       } else {
@@ -61,14 +68,15 @@ export function PasswordRecoveryPage({ mode, onLogin, onForgot }: { mode: 'forgo
       : <form className="auth-form" onSubmit={submit}><fieldset disabled={pending}>
         {mode === 'forgot' ? <>
           <p>Введіть адресу email свого облікового запису.</p>
-          <div className="auth-field"><label htmlFor="recovery-email">Email</label><Input id="recovery-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} /></div>
+          <div className="auth-field"><label htmlFor="recovery-email">Email</label><Input id="recovery-email" type="email" autoComplete="email" required value={email} onChange={event => { setEmail(event.target.value); setEmailValid(event.target.validity.valid) }} /></div>
+          <TurnstileWidget ref={captcha} onTokenChange={setCaptchaToken} />
         </> : <>
-          <div className="auth-field"><label htmlFor="new-password">Новий пароль</label><Input id="new-password" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={event => setPassword(event.target.value)} aria-describedby="recovery-hint" /></div>
-          <div className="auth-field"><label htmlFor="confirm-password">Підтвердіть пароль</label><Input id="confirm-password" type="password" autoComplete="new-password" required minLength={8} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></div>
+          <div className="auth-field"><label htmlFor="new-password">Новий пароль</label><PasswordInput id="new-password"  autoComplete="new-password" required minLength={8} value={password} onChange={event => setPassword(event.target.value)} aria-describedby="recovery-hint" /></div>
+          <div className="auth-field"><label htmlFor="confirm-password">Підтвердіть пароль</label><PasswordInput id="confirm-password"  autoComplete="new-password" required minLength={8} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></div>
           <p id="recovery-hint" className="auth-hint">Щонайменше 8 символів.</p>
         </>}
         {error && <p role="alert" className="auth-error">{error}</p>}
-        <Button className="auth-submit" type="submit" disabled={pending}>{pending ? 'Зачекайте…' : mode === 'forgot' ? 'Надіслати посилання' : 'Змінити пароль'}</Button>
+        <Button className="auth-submit" type="submit" disabled={pending || (mode === 'forgot' && (!emailValid || !captchaToken))}>{pending ? 'Зачекайте…' : mode === 'forgot' ? 'Надіслати посилання' : 'Змінити пароль'}</Button>
       </fieldset></form>}
     <Button variant="link" className="auth-switch" disabled={pending} onClick={() => leave(onLogin)}>Повернутися до входу</Button>
   </div></main>
