@@ -1,0 +1,8 @@
+.plan-document { max-width: 900px; }
+.plan-document section { padding-top: 14px; border-top: 1px solid var(--border); }
+.plan-metadata { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.checklist-run-item { padding: 12px 0; border-bottom: 1px solid var(--border); min-width: 0; }
+.checklist-run-item p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .plan-metadata, .plan-document .tc-field-pair { grid-template-columns: minmax(0, 1fr); }
+}

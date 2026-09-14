@@ -10,8 +10,8 @@ import './AuditPage.css'
 import './TestCasesPage.css'
 import './RequirementsPage.css'
 
-type Props = { projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>> }
-export function RequirementsPage({ projectId, data, testCases, onChange }: Props) {
+type Props = { areaInUse?: (id: string) => boolean; projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>> }
+export function RequirementsPage({ areaInUse, projectId, data, testCases, onChange }: Props) {
   const [filters, setFilters] = useState<RequirementFilters>({ search: '', areaId: '', status: '', coverage: '' })
   const [selectedId, setSelectedId] = useState('')
   const [mode, setMode] = useState<'view' | 'create' | 'edit'>('view')
@@ -62,6 +62,7 @@ export function RequirementsPage({ projectId, data, testCases, onChange }: Props
     remove(kind: DictionaryKind, id: string) {
       if (kind !== 'area') return ''
       if ([...items, ...(draft ? [draft] : [])].some(item => item.areaId === id)) return 'This Area is used by a requirement. Choose another Area before deleting it.'
+      if (areaInUse?.(id)) return 'Area використовується в іншому розділі проєкту.'
       onChange(current => ({ ...current, areas: current.areas.filter(area => area.id !== id || area.projectId !== projectId) }))
       setFilters(current => current.areaId === id ? { ...current, areaId: '' } : current)
       return ''

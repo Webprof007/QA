@@ -156,3 +156,26 @@ export type RequirementsProjectState = {
   items: Requirement[]
   areas: { id: string; projectId: string; name: string }[]
 }
+
+export type ProjectArea = { id: string; projectId: string; name: string }
+export type TestPlan = {
+  id: string; projectId: string; title: string; version: string
+  status: 'Draft' | 'Active' | 'Completed'
+  objective: string; scopeIn: string; scopeOut: string; environment: string
+  entryCriteria: string; exitCriteria: string; risks: string
+  startDate: string; endDate: string; notes: string; updatedAt: string
+}
+export type ChecklistItem = { id: string; checklistId: string; text: string; order: number }
+export type Checklist = {
+  id: string; projectId: string; title: string; areaId?: string; description: string
+  items: ChecklistItem[]; createdAt: string; updatedAt: string
+}
+export type ChecklistRunItem = {
+  id: string; runId: string; checklistItemId: string; textSnapshot: string
+  result: 'Not Run' | 'Pass' | 'Fail' | 'Blocked' | 'N/A'; comment: string
+}
+export type ChecklistRun = {
+  id: string; projectId: string; checklistId: string; titleSnapshot: string
+  startedAt: string; completedAt: string | null; status: 'In Progress' | 'Completed'
+  items: ChecklistRunItem[]
+}

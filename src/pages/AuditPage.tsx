@@ -10,10 +10,10 @@ import type { AuditDictionaryValue, AuditItem } from '@/types'
 import '../App.css'
 import './AuditPage.css'
 
-type Props = { evidenceUrls: AuditEvidenceUrls; auditAreas: AuditDictionaryValue[]; auditTypes: AuditDictionaryValue[]; onAreasChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; onTypesChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; projectId: string; items: AuditItem[]; onChange: Dispatch<SetStateAction<AuditItem[]>> }
+type Props = { areaInUse?: (id: string) => boolean; evidenceUrls: AuditEvidenceUrls; auditAreas: AuditDictionaryValue[]; auditTypes: AuditDictionaryValue[]; onAreasChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; onTypesChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; projectId: string; items: AuditItem[]; onChange: Dispatch<SetStateAction<AuditItem[]>> }
 const emptyFilters: AuditFilters = { search: '', area: '', type: '', severity: '', status: '', from: '', to: '' }
 
-export function AuditPage({ evidenceUrls, projectId, items, onChange, auditAreas, auditTypes, onAreasChange, onTypesChange }: Props) {
+export function AuditPage({ areaInUse, evidenceUrls, projectId, items, onChange, auditAreas, auditTypes, onAreasChange, onTypesChange }: Props) {
   const [filters, setFilters] = useState(emptyFilters)
   const [sort, setSort] = useState<{ key: AuditSortKey; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' })
   const [selectedId, setSelectedId] = useState('')
@@ -75,6 +75,7 @@ export function AuditPage({ evidenceUrls, projectId, items, onChange, auditAreas
     },
     remove(kind: DictionaryKind, id: string) {
       if ([...items, ...Object.values(drafts), ...(newItem ? [newItem] : [])].some(item => item[kind] === id)) return 'Значення використовується в зауваженнях Audit. Спочатку виберіть інше значення в цих зауваженнях.'
+      if (kind === 'area' && areaInUse?.(id)) return 'Area використовується в іншому розділі проєкту.'
       const update = kind === 'area' ? onAreasChange : onTypesChange
       update(current => current.filter(entry => entry.projectId !== projectId || entry.id !== id))
       setFilters(current => current[kind] === id ? { ...current, [kind]: '' } : current)

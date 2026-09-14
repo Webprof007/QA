@@ -1,7 +1,10 @@
+import { createProjectAreaData } from '@/data/projectAreaMockData'
+import { TestPlanPage } from '@/pages/TestPlanPage'
+import { ChecklistsPage } from '@/pages/ChecklistsPage'
 import { RequirementsPage } from '@/pages/RequirementsPage'
-import { initialRequirementsByProject, emptyRequirementsProject } from '@/data/requirementsMockData'
+import { emptyRequirementsProject } from '@/data/requirementsMockData'
 import { TestCasesPage } from '@/pages/TestCasesPage'
-import { initialTestCasesByProject, emptyTestCasesProject } from '@/data/testCasesMockData'
+import { emptyTestCasesProject } from '@/data/testCasesMockData'
 import { createAuditEvidenceUrls } from '@/lib/auditEvidenceUrls'
 import { useEffect, useState, type SetStateAction } from 'react'
 import { AppSidebar } from '@/components/AppSidebar'
@@ -15,8 +18,8 @@ import { SmokeSuiteDialog } from '@/components/SmokeSuiteDialog'
 import { AuditPage } from '@/pages/AuditPage'
 import { PasswordRecoveryPage } from '@/pages/PasswordRecoveryPage'
 import { AuthPage } from '@/pages/AuthPage'
-import { initialAuditAreas, initialAuditTypes, initialAuditByProject } from '@/data/auditMockData'
-import type { AuditItem, TestCasesProjectState, Page, Project, SmokeSuite, SmokeSuiteState } from '@/types'
+import { initialAuditTypes } from '@/data/auditMockData'
+import type { AuditItem, Checklist, ChecklistRun, TestPlan, TestCasesProjectState, Page, Project, SmokeSuite, SmokeSuiteState } from '@/types'
 import './AppShell.css'
 import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
@@ -56,11 +59,15 @@ function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () 
   const [selectedSuiteId, setSelectedSuiteId] = useState('')
   const [suiteEditor, setSuiteEditor] = useState<SmokeSuite | null | undefined>(undefined)
   const [deletingSuite, setDeletingSuite] = useState<SmokeSuite | null>(null)
-  const [auditAreas, setAuditAreas] = useState(initialAuditAreas)
+  const [seed] = useState(createProjectAreaData)
+  const [projectAreas, setProjectAreas] = useState(seed.areas)
+  const [testPlans, setTestPlans] = useState<TestPlan[]>([])
+  const [checklists, setChecklists] = useState<Checklist[]>([])
+  const [checklistRuns, setChecklistRuns] = useState<ChecklistRun[]>([])
   const [auditTypes, setAuditTypes] = useState(initialAuditTypes)
-  const [requirementsByProject, setRequirementsByProject] = useState(initialRequirementsByProject)
-  const [testCasesByProject, setTestCasesByProject] = useState(initialTestCasesByProject)
-  const [auditByProject, setAuditByProject] = useState(initialAuditByProject)
+  const [requirementsByProject, setRequirementsByProject] = useState(seed.requirements)
+  const [testCasesByProject, setTestCasesByProject] = useState(seed.testCases)
+  const [auditByProject, setAuditByProject] = useState(seed.audit)
   const [evidenceUrls] = useState(createAuditEvidenceUrls)
   useEffect(() => evidenceUrls.retain(Object.values(auditByProject).flatMap(items => items.flatMap(item => item.evidence.map(file => file.url)))), [auditByProject, evidenceUrls])
   const availableProjects = currentUser ? projects.filter(project => project.userIds.includes(String(currentUser.id))) : []
@@ -127,6 +134,10 @@ function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () 
     if (!deletingProject) return
     const id = deletingProject.id
     setProjects(current => current.filter(item => item.id !== id))
+    setProjectAreas(current => current.filter(item => item.projectId !== id))
+    setTestPlans(current => current.filter(item => item.projectId !== id))
+    setChecklists(current => current.filter(item => item.projectId !== id))
+    setChecklistRuns(current => current.filter(item => item.projectId !== id))
     setRequirementsByProject(current => { const next = { ...current }; delete next[id]; return next })
     setTestCasesByProject(current => { const next = { ...current }; delete next[id]; return next })
     setSmokeSuitesByProject(current => {
@@ -147,9 +158,10 @@ function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () 
   }
 
   function changeTestCases(action: SetStateAction<TestCasesProjectState>) {
-    const data = testCasesByProject[projectId] ?? emptyTestCasesProject()
+    const data = { ...(testCasesByProject[projectId] ?? emptyTestCasesProject()), areas: projectAreas.filter(area => area.projectId === projectId) }
     const next = typeof action === 'function' ? action(data) : action
-    setTestCasesByProject(current => ({ ...current, [projectId]: next }))
+    updateAreas(next.areas)
+    setTestCasesByProject(current => ({ ...current, [projectId]: { ...next, areas: [] } }))
     // Requirements own the links. Removing a definition also removes dangling links.
     const removedIds = new Set(data.items.filter(item => !next.items.some(test => test.id === item.id)).map(item => item.id))
     if (removedIds.size) setRequirementsByProject(current => {
@@ -160,6 +172,34 @@ function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () 
           ? { ...item, testCaseIds: item.testCaseIds.filter(id => !removedIds.has(id)), updatedAt: new Date().toISOString() }
           : item,
       ) } }
+    })
+  }
+
+  function areaInUse(id: string) {
+    return (testCasesByProject[projectId]?.items ?? []).some(item => item.areaId === id)
+      || (requirementsByProject[projectId]?.items ?? []).some(item => item.areaId === id)
+      || (auditByProject[projectId] ?? []).some(item => item.area === id)
+      || checklists.some(item => item.projectId === projectId && item.areaId === id)
+  }
+  function updateAreas(areas: typeof projectAreas) {
+    setProjectAreas(current => [...current.filter(area => area.projectId !== projectId), ...areas.filter(area => area.projectId === projectId)])
+  }
+  function saveArea(name: string, id?: string) {
+    const value = { id: id ?? crypto.randomUUID(), projectId, name }
+    setProjectAreas(current => id ? current.map(area => area.id === id && area.projectId === projectId ? value : area) : [...current, value])
+    return value.id
+  }
+  function removeArea(id: string) {
+    if (areaInUse(id)) return 'Area використовується в цьому проєкті. Спочатку змініть пов’язані записи.'
+    setProjectAreas(current => current.filter(area => area.id !== id || area.projectId !== projectId))
+    return ''
+  }
+  function saveRun(run: ChecklistRun) {
+    if (run.projectId !== projectId || !checklists.some(item => item.id === run.checklistId && item.projectId === projectId)) return
+    setChecklistRuns(current => {
+      const existing = current.find(item => item.id === run.id)
+      if (existing?.status === 'Completed') return current
+      return existing ? current.map(item => item.id === run.id ? run : item) : [...current, run]
     })
   }
 
@@ -199,19 +239,31 @@ function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () 
           />
         ) : page === 'Smoke' && project ? (
           <SmokeSuitesPage suites={smokeSuitesByProject[project.id] ?? []} onAdd={() => setSuiteEditor(null)} onOpen={setSelectedSuiteId} onEdit={state => setSuiteEditor(state.suite)} onDelete={state => setDeletingSuite(state.suite)} />
+        ) : page === 'Test Plan' && project ? (
+          <TestPlanPage key={project.id} projectId={project.id} plans={testPlans} onSave={plan => {
+            if (plan.projectId === project.id) setTestPlans(current => current.some(item => item.id === plan.id && item.projectId === project.id)
+              ? current.map(item => item.id === plan.id && item.projectId === project.id ? plan : item)
+              : [...current, plan])
+          }} />
+        ) : page === 'Checklists' && project ? (
+          <ChecklistsPage key={project.id} projectId={project.id} items={checklists} runs={checklistRuns} areas={projectAreas} onAreaSave={saveArea} onAreaRemove={removeArea} onRun={saveRun} onSave={item => {
+            if (item.projectId === project.id) setChecklists(current => current.some(value => value.id === item.id) ? current.map(value => value.id === item.id ? item : value) : [...current, item])
+          }} />
         ) : page === 'Test Cases' && project ? (
-          <TestCasesPage key={project.id} projectId={project.id} data={testCasesByProject[project.id] ?? emptyTestCasesProject()} requirements={requirementsByProject[project.id]?.items ?? []} onChange={changeTestCases} />
+          <TestCasesPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={{ ...(testCasesByProject[project.id] ?? emptyTestCasesProject()), areas: projectAreas.filter(area => area.projectId === project.id) }} requirements={requirementsByProject[project.id]?.items ?? []} onChange={changeTestCases} />
         ) : page === 'Requirements' && project ? (
-          <RequirementsPage key={project.id} projectId={project.id} data={requirementsByProject[project.id] ?? emptyRequirementsProject()} testCases={testCasesByProject[project.id]?.items ?? []} onChange={action => setRequirementsByProject(current => {
-            const data = current[project.id] ?? emptyRequirementsProject()
-            return { ...current, [project.id]: typeof action === 'function' ? action(data) : action }
-          })} />
+          <RequirementsPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={{ ...(requirementsByProject[project.id] ?? emptyRequirementsProject()), areas: projectAreas.filter(area => area.projectId === project.id) }} testCases={testCasesByProject[project.id]?.items ?? []} onChange={action => {
+            const data = { ...(requirementsByProject[project.id] ?? emptyRequirementsProject()), areas: projectAreas.filter(area => area.projectId === project.id) }
+            const next = typeof action === 'function' ? action(data) : action
+            updateAreas(next.areas)
+            setRequirementsByProject(current => ({ ...current, [project.id]: { ...next, areas: [] } }))
+          }} />
         ) : page === 'Audit' && project ? (
           <AuditPage
             evidenceUrls={evidenceUrls}
             key={project.id}
             projectId={project.id}
-            auditAreas={auditAreas} auditTypes={auditTypes} onAreasChange={setAuditAreas} onTypesChange={setAuditTypes}
+            areaInUse={areaInUse} auditAreas={projectAreas} auditTypes={auditTypes} onAreasChange={setProjectAreas} onTypesChange={setAuditTypes}
             items={auditByProject[project.id]}
             onChange={changeAudit}
           />
@@ -219,7 +271,7 @@ function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () 
           <main className="smoke-app">
             <header className="page-heading"><h1>{page}</h1></header>
             <p className="muted">
-              {page === 'Smoke' || page === 'Audit' || page === 'Test Cases' || page === 'Requirements'
+              {page === 'Smoke' || page === 'Audit' || page === 'Test Cases' || page === 'Requirements' || page === 'Test Plan' || page === 'Checklists'
                 ? 'У поточного користувача поки немає проєктів.'
                 : 'Розділ поки не заповнений.'}
             </p>

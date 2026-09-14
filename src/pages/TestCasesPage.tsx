@@ -11,8 +11,8 @@ import '../App.css'
 import './AuditPage.css'
 import './TestCasesPage.css'
 
-type Props = { requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>> }
-export function TestCasesPage({ projectId, data, onChange, requirements }: Props) {
+type Props = { areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>> }
+export function TestCasesPage({ areaInUse, projectId, data, onChange, requirements }: Props) {
   const [filters, setFilters] = useState<CaseFilters>({ search: '', areaId: '', typeId: '', priority: '', status: '' })
   const [sort, setSort] = useState<CaseSort>({ key: 'code', direction: 'asc' })
   const [selectedId, setSelectedId] = useState('')
@@ -69,6 +69,7 @@ export function TestCasesPage({ projectId, data, onChange, requirements }: Props
     remove(kind: DictionaryKind, id: string) {
       const field = kind === 'area' ? 'areaId' : 'typeId'
       if ([...items, ...(draft ? [draft] : [])].some(item => item[field] === id)) return 'This value is used by a test case. Choose another value before deleting it.'
+      if (kind === 'area' && areaInUse?.(id)) return 'Area використовується в іншому розділі проєкту.'
       const key = kind === 'area' ? 'areas' : 'types'
       onChange(current => ({ ...current, [key]: current[key].filter(value => value.id !== id || value.projectId !== projectId) }))
       setFilters(current => current[field] === id ? { ...current, [field]: '' } : current)
