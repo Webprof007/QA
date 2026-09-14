@@ -1,0 +1,17 @@
+.req-code-column { width: 20%; }
+.req-meta-column { width: 15%; }
+.req-linked-list { display: grid; gap: 6px; list-style: none; padding: 0; margin: 0; }
+.req-linked-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.req-linked-list li > span { min-width: 0; overflow-wrap: anywhere; }
+.req-test-selector { max-height: 240px; overflow-y: auto; display: grid; gap: 10px; padding: 4px; }
+.req-test-option { display: flex; align-items: start; gap: 8px; font-size: 13px; }
+.req-test-option label { min-width: 0; cursor: pointer; overflow-wrap: anywhere; }
+.req-test-option button { margin-top: 2px; flex-shrink: 0; }
+
+.req-picker { width: min(680px, calc(100vw - 32px)); max-width: 680px; max-height: 85dvh; overflow-y: auto; }
+.req-picker-filters { display: grid; grid-template-columns: minmax(0, 1fr) 145px; gap: 10px; }
+.req-picker-selected { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.req-picker-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) 80px; gap: 10px; align-items: center; padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer; }
+.req-picker-title { display: block; overflow-wrap: anywhere; }
+.req-picker-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.req-linked-list { max-height: 220px; overflow-y: auto; }

@@ -2,10 +2,10 @@ import { X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TestResultForm } from './TestResultForm'
 import { TestResultHistory } from './TestResultHistory'
-import type { ResultDraft, TestCase, TestResult } from '@/types'
+import type { ResultDraft, SmokeTestCase, TestResult } from '@/types'
 
 type Props = {
-  test: TestCase
+  test: SmokeTestCase
   draft: ResultDraft
   notice: string
   onChange: (draft: ResultDraft) => void
@@ -34,18 +34,18 @@ export function TestWorkspacePanel({
         <Button
           size="icon"
           variant="ghost"
-          aria-label="Закрыть рабочую панель"
+          aria-label="Закрити робочу панель"
           onClick={onClose}
         >
           <X />
         </Button>
       </div>
       <div className="section-heading form-heading">
-        <h3>{draft.id ? 'Редактирование результата' : 'Новая проверка'}</h3>
+        <h3>{draft.id ? 'Редагування результату' : 'Нова перевірка'}</h3>
         {draft.id && (
           <Button size="sm" variant="ghost" onClick={onNew}>
             <Plus />
-            Новый результат
+            Новий результат
           </Button>
         )}
       </div>

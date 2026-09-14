@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/rich-text/RichTextEditor'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import type { ResultDraft } from '@/types'
 
@@ -22,7 +22,7 @@ export function TestResultForm({ draft, onChange, onSave }: Props) {
     >
       <div className="result-top-row">
         <div className="field">
-          <label htmlFor="result-date">Дата</label>
+          <label id="result-date-label" htmlFor="result-date">Дата</label>
           <Input
             id="result-date"
             type="date"
@@ -41,13 +41,13 @@ export function TestResultForm({ draft, onChange, onSave }: Props) {
               onChange({ ...draft, completed: checked === true })
             }
           />
-          <label htmlFor="result-completed">Проверено</label>
+          <label id="result-completed-label" htmlFor="result-completed">Перевірено</label>
         </div>
       </div>
       <fieldset className="field">
         <legend>Результат</legend>
         <RadioGroup
-          aria-label="Результат проверки"
+          aria-label="Результат перевірки"
           value={draft.status ?? ''}
           onValueChange={(value) =>
             onChange({ ...draft, status: value as ResultDraft['status'] })
@@ -72,26 +72,26 @@ export function TestResultForm({ draft, onChange, onSave }: Props) {
         </RadioGroup>
       </fieldset>
       <div className="field">
-        <label htmlFor="result-comment">Комментарий</label>
-        <Textarea
+        <label id="result-comment-label" htmlFor="result-comment">Коментар</label>
+        <RichTextEditor
           id="result-comment"
           rows={4}
-          placeholder="Заметки по проверке"
+          placeholder="Нотатки щодо перевірки"
           value={draft.comment}
-          onChange={(event) =>
-            onChange({ ...draft, comment: event.target.value })
+          onValueChange={value =>
+            onChange({ ...draft, comment: value })
           }
         />
       </div>
       <div className="field">
-        <label htmlFor="result-task">
-          Ссылка на задачу <span className="optional">· необязательно</span>
+        <label id="result-task-label" htmlFor="result-task">
+          Посилання на задачу <span className="optional">· необов’язково</span>
         </label>
         <Input
           id="result-task"
           type="url"
           pattern="https?://.*"
-          title="Введите ссылку, начинающуюся с http:// или https://"
+          title="Введіть посилання, що починається з http:// або https://"
           placeholder="https://…"
           value={draft.taskUrl}
           onChange={(event) =>
@@ -100,7 +100,7 @@ export function TestResultForm({ draft, onChange, onSave }: Props) {
         />
       </div>
       <Button type="submit">
-        {draft.id ? 'Сохранить изменения' : 'Сохранить результат'}
+        {draft.id ? 'Зберегти зміни' : 'Зберегти результат'}
       </Button>
     </form>
   )

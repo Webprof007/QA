@@ -1,0 +1,18 @@
+.qa-rich-editor { border: 1px solid var(--input); border-radius: 8px; min-width: 0; overflow: hidden; }
+.qa-rich-editor:focus-within { outline: 2px solid var(--ring); outline-offset: 1px; }
+.qa-rich-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 3px; border-bottom: 1px solid var(--border); }
+.qa-rich-toolbar button { width: 26px; height: 26px; padding: 4px; }
+.qa-rich-toolbar button[aria-pressed="true"] { background: var(--muted); }
+.qa-rich-toolbar svg { width: 14px; height: 14px; }
+.qa-rich-toolbar select { max-width: 95px; min-width: 0; padding: 3px; font-size: 12px; background: var(--background); border: 1px solid var(--border); border-radius: 4px; }
+.qa-rich-editor .qa-rich-content { padding: 8px 10px; outline: none; max-height: 320px; overflow-y: auto; }
+.qa-rich-content { min-width: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+.qa-rich-content p { margin: 0 0 6px; white-space: pre-wrap; }
+.qa-rich-content p:last-child { margin-bottom: 0; }
+.qa-rich-content h2 { font-size: 18px; font-weight: 650; margin: 8px 0; }
+.qa-rich-content h3 { font-size: 15px; font-weight: 600; margin: 6px 0; }
+.qa-rich-content ul { list-style: disc; margin: 6px 0; padding-left: 22px; }
+.qa-rich-content ol { list-style: decimal; margin: 6px 0; padding-left: 22px; }
+.qa-rich-content li { display: list-item; padding: 0; border: 0; }
+.qa-rich-content strong, .qa-rich-content b { font-weight: 700; }
+.qa-rich-editor[data-empty="true"] .qa-rich-content::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--muted-foreground); }

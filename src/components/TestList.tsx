@@ -2,17 +2,17 @@ import { Plus } from 'lucide-react'
 import { Accordion } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { TestItem } from './TestItem'
-import type { TestCase } from '@/types'
+import type { SmokeTestCase } from '@/types'
 
 type Props = {
-  tests: TestCase[]
+  tests: SmokeTestCase[]
   selectedId: string
   panelOpen: boolean
   onSelect: (id: string) => void
   onOpenPanel: () => void
   onAdd: () => void
-  onEdit: (test: TestCase) => void
-  onDelete: (test: TestCase) => void
+  onEdit: (test: SmokeTestCase) => void
+  onDelete: (test: SmokeTestCase) => void
 }
 
 export function TestList({
@@ -28,22 +28,22 @@ export function TestList({
   return (
     <section className="test-list" aria-labelledby="tests-title">
       <div className="section-heading tests-heading">
-        <h2 id="tests-title">Smoke-тесты</h2>
+        <h2 id="tests-title">Smoke-тести</h2>
         <Button size="sm" variant="outline" onClick={onAdd}>
           <Plus />
-          Добавить тест
+          Додати тест
         </Button>
       </div>
       <div className="test-columns column-headings" aria-hidden="true">
         <span>ID</span>
-        <span>Проверка</span>
-        <span>Профиль</span>
-        <span>Ориентир</span>
+        <span>Перевірка</span>
+        <span>Профіль</span>
+        <span>Орієнтир</span>
         <span />
       </div>
       {tests.length === 0 ? (
         <p className="empty-state muted">
-          Тестов пока нет. Добавьте первый тест.
+          Тестів поки немає. Додайте перший тест.
         </p>
       ) : (
         <Accordion

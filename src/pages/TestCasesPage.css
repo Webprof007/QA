@@ -1,0 +1,35 @@
+.tc-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 24px; }
+.tc-layout.tc-with-panel { grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); }
+.tc-list, .tc-panel { min-width: 0; }
+.tc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.tc-toolbar input { width: 260px; max-width: 100%; height: 32px; }
+.tc-add { margin-left: auto; }
+.tc-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.tc-code-column { width: 14%; }
+.tc-meta-column { width: 13%; }
+.tc-actions-column { width: 32px; }
+.tc-table th { text-align: left; font-weight: 500; color: var(--muted-foreground); }
+.tc-table th button { max-width: 100%; padding: 2px; gap: 2px; font-size: 11px; white-space: normal; }
+.tc-table th svg { width: 11px; height: 11px; }
+.tc-table td, .tc-table th { padding: 8px 4px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.tc-table tbody tr { cursor: pointer; }
+.tc-table tbody tr:hover, .tc-selected { background: var(--muted); }
+.tc-open { text-align: left; cursor: pointer; overflow-wrap: anywhere; font-family: monospace; }
+.tc-open:focus-visible { outline: 2px solid var(--ring); }
+.tc-panel { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; border-left: 1px solid var(--border); padding: 0 4px 0 24px; overflow-wrap: anywhere; }
+.tc-form, .tc-section, .tc-step { display: grid; gap: 12px; }
+.tc-form { gap: 22px; }
+.tc-section h3 { font-size: 14px; font-weight: 600; }
+.tc-step h4, .tc-step h5, .tc-form dt { font-size: 12px; font-weight: 500; }
+.tc-step { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tc-field-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.tc-form dt { color: var(--muted-foreground); margin-bottom: 4px; }
+.tc-form p, .tc-form li { white-space: pre-wrap; font-size: 13px; }
+.tc-form ol { list-style: decimal; padding-left: 22px; }
+.tc-panel-actions, .tc-order { display: flex; gap: 8px; flex-wrap: wrap; }
+.tc-order { justify-content: flex-end; margin-top: 4px; }
+.tc-form section > button { justify-self: start; }
+@media (max-width: 1000px) {
+  .tc-layout.tc-with-panel { grid-template-columns: minmax(0, 1fr); }
+  .tc-panel { position: fixed; inset: 12dvh 0 0; max-height: 88dvh; z-index: 40; background: var(--background); border: 1px solid var(--border); padding: 20px; border-radius: 12px 12px 0 0; }
+}

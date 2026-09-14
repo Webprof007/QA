@@ -1,4 +1,14 @@
-import type { PreparationItem, TestCase } from '@/types'
+import type { PreparationItem, Project, SmokeSuiteState, SmokeTestCase, User } from '@/types'
+
+export const users: User[] = [
+  { id: 'alena', name: 'Alena Minina', email: 'alena@example.com' },
+  { id: 'test-user', name: 'Test User', email: 'test@example.com' },
+]
+
+export const projects: Project[] = [
+  { id: 'voicli', name: 'Voicli', userIds: ['alena', 'test-user'] },
+  { id: 'qp-notes', name: 'QP Notes', userIds: ['alena', 'test-user'] },
+]
 
 // No prerequisites were supplied. Users can add their own checklist items.
 export const initialPreparation: PreparationItem[] = []
@@ -22,9 +32,11 @@ const testRows: [string, string, string, number][] = [
   ['SMK-RWD-001', 'Mobile critical-flow sanity', 'Full', 4],
 ]
 
-export const initialTests: TestCase[] = testRows.map(
+export const initialTests: SmokeTestCase[] = testRows.map(
   ([id, title, profile, estimatedMinutes]) => ({
     id,
+    projectId: 'voicli',
+    smokeSuiteId: 'voicli-main-smoke',
     title,
     profile,
     estimatedMinutes,
@@ -33,3 +45,13 @@ export const initialTests: TestCase[] = testRows.map(
     results: [],
   }),
 )
+
+const suite = (id: string, projectId: string, name: string, createdAt = '2026-09-01'): SmokeSuiteState => ({ suite: { id, projectId, name, createdAt }, tests: [], preparation: [], drafts: {} })
+export const initialSmokeSuitesByProject: Record<string, SmokeSuiteState[]> = {
+  voicli: [
+    { ...suite('voicli-main-smoke', 'voicli', 'Main Smoke'), tests: initialTests },
+    suite('voicli-mobile-smoke', 'voicli', 'Mobile Smoke'),
+    suite('voicli-billing-smoke', 'voicli', 'Billing Smoke'),
+  ],
+  'qp-notes': [],
+}

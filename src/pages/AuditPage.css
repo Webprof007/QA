@@ -1,0 +1,75 @@
+.audit-page-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.audit-select { width: 100%; min-height: 32px; padding: 5px 10px; border: 1px solid var(--input); border-radius: 8px; background: var(--background); color: var(--foreground); font: inherit; font-size: 13px; }
+.audit-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.audit-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.audit-layout.audit-with-panel { grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); }
+.audit-list { min-width: 0; }
+.audit-with-panel .audit-list { padding-right: 24px; }
+.audit-list-scroll { overflow: hidden; }
+.audit-list-scroll:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.audit-table { width: 100%; }
+.audit-summary { display: grid; grid-template-columns: minmax(82px, .9fr) minmax(180px, 3fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(78px, .9fr) minmax(90px, 1fr) minmax(84px, .9fr) minmax(42px, .45fr); gap: 8px; align-items: center; min-width: 0; }
+.audit-column-headings { display: grid; grid-template-columns: minmax(82px, .9fr) minmax(180px, 3fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(78px, .9fr) minmax(90px, 1fr) minmax(84px, .9fr) minmax(42px, .45fr) 32px; gap: 8px; padding: 6px 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 11px; }
+.audit-header-cell { min-width: 0; display: flex; align-items: center; gap: 2px; }
+.audit-header-cell:nth-child(8) { grid-column: 2; }
+.audit-header-button { min-width: 0; height: 26px; padding: 0 4px; font-size: 11px; font-weight: 500; }
+.audit-header-button svg, .audit-sort-only svg { width: 13px; height: 13px; }
+.audit-header-search { position: relative; display: flex; align-items: center; min-width: 0; }
+.audit-header-search > svg { position: absolute; left: 6px; width: 12px; color: var(--muted-foreground); }
+.audit-header-search input { width: 100%; height: 26px; padding-left: 23px; font-size: 11px; }
+.audit-header-inline { display: flex; align-items: center; }
+.audit-sort-only { width: 24px; height: 24px; padding: 0; }
+.audit-menu-label { display: block; padding: 4px 6px 3px; color: var(--muted-foreground); font-size: 11px; }
+.audit-date-menu input { width: 180px; margin: 2px 6px 6px; }
+.audit-row { display: grid; grid-template-columns: minmax(82px, .9fr) minmax(180px, 3fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(78px, .9fr) minmax(90px, 1fr) minmax(84px, .9fr) minmax(42px, .45fr) 32px; gap: 8px; align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; }
+.audit-compact-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.audit-title { font-weight: 500; line-height: 1.5; }
+.audit-item { border-bottom: 1px solid var(--border); }
+.audit-selected { background: var(--muted); }
+.audit-task { font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.audit-severity-critical { color: #a41e27; font-weight: 600; }
+.audit-severity-high { color: #b33838; }
+.audit-severity-medium { color: #936019; }
+.audit-severity-low { color: var(--muted-foreground); }
+.audit-workspace { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; border-left: 1px solid var(--border); padding: 0 4px 0 28px; min-width: 0; }
+.audit-workspace-form { display: grid; gap: 18px; }
+.audit-workspace-form > button { justify-self: start; }
+.audit-field-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.audit-toolbar { display: flex; align-items: center; gap: 10px; min-height: 34px; margin-bottom: 8px; }
+.audit-count { margin-left: auto; }
+@media (max-width: 1000px) {
+  .audit-layout.audit-with-panel { grid-template-columns: minmax(0, 1fr); }
+  .audit-with-panel .audit-list { padding-right: 0; }
+  .audit-workspace { position: fixed; inset: 15dvh 0 0; z-index: 40; max-height: 85dvh; background: var(--background); border: 1px solid var(--border); border-radius: 12px 12px 0 0; padding: 20px; box-shadow: 0 -8px 32px #00000012; }
+}
+
+@media (max-width: 1250px) and (min-width: 1001px) {
+  .audit-summary, .audit-row { grid-template-columns: minmax(72px, .8fr) minmax(150px, 2.5fr) minmax(64px, .8fr) minmax(70px, .8fr) minmax(68px, .8fr) minmax(78px, .9fr) minmax(76px, .8fr) minmax(34px, .35fr) 28px; gap: 5px; font-size: 11px; }
+}
+
+.audit-global-search { display: flex; align-items: center; position: relative; width: 300px; max-width: 100%; }
+.audit-global-search > svg { position: absolute; left: 9px; width: 14px; color: var(--muted-foreground); }
+.audit-global-search input { padding-left: 30px; height: 32px; }
+.audit-toolbar { flex-wrap: wrap; }
+.audit-header-cell:nth-child(8) { grid-column: auto; }
+.audit-date-popover { width: 280px; max-width: calc(100vw - 24px); display: grid; gap: 12px; font-size: 13px; }
+.audit-date-popover p { font-weight: 600; }
+.audit-date-popover [role="radiogroup"] label { display: flex; align-items: center; gap: 8px; }
+.audit-date-field { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; }
+.audit-dictionary-popover { width: 300px; max-width: calc(100vw - 24px); display: grid; gap: 8px; font-size: 13px; }
+.audit-dictionary-values { max-height: 220px; overflow-y: auto; }
+.audit-dictionary-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px 30px; align-items: center; }
+.audit-dictionary-row > button:first-child { justify-content: start; overflow: hidden; text-overflow: ellipsis; }
+.audit-dictionary-trigger { width: 100%; justify-content: start; overflow: hidden; }
+
+.audit-evidence { min-width: 0; }
+.audit-evidence h3 { font-size: 13px; font-weight: 500; }
+.audit-evidence-drop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px; font-size: 12px; }
+.audit-evidence-list { display: grid; gap: 8px; max-height: 280px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.audit-evidence-list li { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 1fr) 32px; align-items: center; gap: 8px; }
+.audit-evidence-name { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.audit-evidence-list video { width: 100%; max-height: 110px; border-radius: 4px; }
+.audit-evidence-thumbnail { justify-self: start; cursor: zoom-in; border-radius: 4px; }
+.audit-evidence-thumbnail img { width: 80px; height: 64px; object-fit: cover; border-radius: 4px; }
+.audit-evidence-preview { max-width: min(900px, calc(100vw - 32px)); overflow-wrap: anywhere; }
+.audit-evidence-preview img { width: 100%; max-height: 70dvh; object-fit: contain; }

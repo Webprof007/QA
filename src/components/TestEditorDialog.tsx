@@ -1,7 +1,8 @@
+import { joinRichTextBlocks, splitRichTextBlocks } from '@/lib/richText'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/rich-text/RichTextEditor'
 import {
   Dialog,
   DialogContent,
@@ -10,34 +11,32 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import type { TestCase } from '@/types'
+import type { SmokeTestCase } from '@/types'
 
 type Props = {
-  test: TestCase | null
-  tests: TestCase[]
-  onSave: (test: TestCase) => void
+  projectId: string
+  smokeSuiteId: string
+  test: SmokeTestCase | null
+  tests: SmokeTestCase[]
+  onSave: (test: SmokeTestCase) => void
   onClose: () => void
 }
 
-export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
+export function TestEditorDialog({ projectId, smokeSuiteId, test, tests, onSave, onClose }: Props) {
   const [id, setId] = useState(test?.id ?? '')
   const [title, setTitle] = useState(test?.title ?? '')
   const [profile, setProfile] = useState(test?.profile ?? 'Core')
   const [minutes, setMinutes] = useState(String(test?.estimatedMinutes ?? 1))
-  const [steps, setSteps] = useState(test?.steps.join('\n') ?? '')
+  const [steps, setSteps] = useState(joinRichTextBlocks(test?.steps ?? []))
   const [expectedResults, setExpectedResults] = useState(
-    test?.expectedResults.join('\n') ?? '',
+    joinRichTextBlocks(test?.expectedResults ?? []),
   )
   const [error, setError] = useState('')
-  const lines = (text: string) =>
-    text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
+  const lines = splitRichTextBlocks
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!id.trim() || !title.trim() || !profile.trim()) {
-      setError('Заполните ID, название и профиль.')
+      setError('Заповніть ID, назву та профіль.')
       return
     }
     if (
@@ -47,15 +46,17 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
           current.id !== test?.id,
       )
     ) {
-      setError('Тест с таким ID уже существует.')
+      setError('Тест із таким ID уже існує.')
       return
     }
     if (!Number.isInteger(Number(minutes)) || Number(minutes) < 1) {
-      setError('Укажите целое число минут от 1.')
+      setError('Укажіть цілу кількість хвилин від 1.')
       return
     }
     onSave({
       id: id.trim(),
+      projectId,
+      smokeSuiteId,
       title: title.trim(),
       profile: profile.trim(),
       estimatedMinutes: Number(minutes),
@@ -73,14 +74,14 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
     >
       <DialogContent className="editor-dialog">
         <DialogHeader>
-          <DialogTitle>{test ? 'Изменить тест' : 'Добавить тест'}</DialogTitle>
+          <DialogTitle>{test ? 'Змінити тест' : 'Додати тест'}</DialogTitle>
           <DialogDescription>
-            Каждый шаг и ожидаемый результат укажите с новой строки.
+            Кожен крок і очікуваний результат укажіть із нового рядка.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={save} className="test-editor-form">
           <div className="field">
-            <label htmlFor="test-id">ID</label>
+            <label id="test-id-label" htmlFor="test-id">ID</label>
             <Input
               id="test-id"
               value={id}
@@ -90,7 +91,7 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
             />
           </div>
           <div className="field">
-            <label htmlFor="test-title">Проверка</label>
+            <label id="test-title-label" htmlFor="test-title">Перевірка</label>
             <Input
               id="test-title"
               value={title}
@@ -100,7 +101,7 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
           </div>
           <div className="editor-columns">
             <div className="field">
-              <label htmlFor="test-profile">Профиль</label>
+              <label id="test-profile-label" htmlFor="test-profile">Профіль</label>
               <Input
                 id="test-profile"
                 value={profile}
@@ -109,7 +110,7 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
               />
             </div>
             <div className="field">
-              <label htmlFor="test-minutes">Ориентир, мин</label>
+              <label id="test-minutes-label" htmlFor="test-minutes">Орієнтир, хв</label>
               <Input
                 id="test-minutes"
                 type="number"
@@ -122,21 +123,21 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
             </div>
           </div>
           <div className="field">
-            <label htmlFor="test-steps">Что проверить</label>
-            <Textarea
+            <label id="test-steps-label" htmlFor="test-steps">Що перевірити</label>
+            <RichTextEditor
               id="test-steps"
               rows={3}
               value={steps}
-              onChange={(event) => setSteps(event.target.value)}
+              onValueChange={value => setSteps(value)}
             />
           </div>
           <div className="field">
-            <label htmlFor="test-expected">Ожидаемый результат</label>
-            <Textarea
+            <label id="test-expected-label" htmlFor="test-expected">Очікуваний результат</label>
+            <RichTextEditor
               id="test-expected"
               rows={3}
               value={expectedResults}
-              onChange={(event) => setExpectedResults(event.target.value)}
+              onValueChange={value => setExpectedResults(value)}
             />
           </div>
           {error && (
@@ -146,9 +147,9 @@ export function TestEditorDialog({ test, tests, onSave, onClose }: Props) {
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Отмена
+              Скасувати
             </Button>
-            <Button type="submit">Сохранить тест</Button>
+            <Button type="submit">Зберегти тест</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -12,6 +12,8 @@
   font-weight: 650;
   letter-spacing: -0.7px;
 }
+.smoke-suite-heading { display: flex; align-items: center; gap: 12px; }
+.smoke-suite-heading h1 { margin: 0; }
 .section-heading {
   display: flex;
   align-items: center;

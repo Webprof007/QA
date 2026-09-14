@@ -12,11 +12,13 @@ import {
 import type { PreparationItem } from '@/types'
 
 type Props = {
+  projectId: string
+  smokeSuiteId: string
   items: PreparationItem[]
   onChange: (items: PreparationItem[]) => void
 }
 
-export function PreparationChecklist({ items, onChange }: Props) {
+export function PreparationChecklist({ projectId, smokeSuiteId, items, onChange }: Props) {
   const [editor, setEditor] = useState<{
     id: string | null
     text: string
@@ -35,6 +37,8 @@ export function PreparationChecklist({ items, onChange }: Props) {
         ...items,
         {
           id: crypto.randomUUID(),
+          projectId,
+          smokeSuiteId,
           text: editor.text.trim(),
           checked: false,
           sortOrder: Math.max(-1, ...items.map((item) => item.sortOrder)) + 1,
@@ -46,20 +50,20 @@ export function PreparationChecklist({ items, onChange }: Props) {
   return (
     <section className="preparation" aria-labelledby="preparation-title">
       <div className="section-heading">
-        <h2 id="preparation-title">Что нужно перед началом</h2>
+        <h2 id="preparation-title">Що потрібно перед початком</h2>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setEditor({ id: null, text: '' })}
         >
           <Plus />
-          Добавить пункт
+          Додати пункт
         </Button>
       </div>
       {items.length === 0 && !editor && (
         <p className="muted empty-preparation">
-          Пока нет пунктов подготовки. Добавьте необходимые условия перед
-          проверкой.
+          Поки немає пунктів підготовки. Додайте необхідні умови перед
+          перевіркою.
         </p>
       )}
       <ul className="preparation-list">
@@ -91,7 +95,7 @@ export function PreparationChecklist({ items, onChange }: Props) {
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Действия: ${item.text}`}
+                    aria-label={`Дії: ${item.text}`}
                   >
                     <MoreHorizontal />
                   </Button>
@@ -100,7 +104,7 @@ export function PreparationChecklist({ items, onChange }: Props) {
                   <DropdownMenuItem
                     onSelect={() => setEditor({ id: item.id, text: item.text })}
                   >
-                    Изменить
+                    Змінити
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
@@ -111,7 +115,7 @@ export function PreparationChecklist({ items, onChange }: Props) {
                       if (editor?.id === item.id) setEditor(null)
                     }}
                   >
-                    Удалить
+                    Видалити
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -122,8 +126,8 @@ export function PreparationChecklist({ items, onChange }: Props) {
         <form onSubmit={save} className="preparation-editor">
           <Input
             autoFocus
-            aria-label="Текст пункта подготовки"
-            placeholder="Что нужно подготовить?"
+            aria-label="Текст пункту підготовки"
+            placeholder="Що потрібно підготувати?"
             value={editor.text}
             onChange={(event) =>
               setEditor({ ...editor, text: event.target.value })
@@ -131,7 +135,7 @@ export function PreparationChecklist({ items, onChange }: Props) {
             required
           />
           <Button type="submit" size="sm" disabled={!editor.text.trim()}>
-            Сохранить
+            Зберегти
           </Button>
           <Button
             type="button"
@@ -139,7 +143,7 @@ export function PreparationChecklist({ items, onChange }: Props) {
             size="sm"
             onClick={() => setEditor(null)}
           >
-            Отмена
+            Скасувати
           </Button>
         </form>
       )}

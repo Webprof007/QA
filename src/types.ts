@@ -1,5 +1,19 @@
+export type User = {
+  id: string
+  name: string
+  email: string
+}
+
+export type Project = {
+  id: string
+  name: string
+  userIds: string[]
+}
+
 export type PreparationItem = {
   id: string
+  projectId: string
+  smokeSuiteId: string
   text: string
   checked: boolean
   sortOrder: number
@@ -7,6 +21,7 @@ export type PreparationItem = {
 
 export type TestResult = {
   id: string
+  projectId: string
   date: string
   completed: boolean
   status: 'pass' | 'fail' | 'blocked' | null
@@ -14,8 +29,10 @@ export type TestResult = {
   taskUrl: string
 }
 
-export type TestCase = {
+export type SmokeTestCase = {
   id: string
+  projectId: string
+  smokeSuiteId: string
   title: string
   profile: string
   estimatedMinutes: number
@@ -25,3 +42,123 @@ export type TestCase = {
 }
 
 export type ResultDraft = Omit<TestResult, 'id'> & { id?: string }
+
+export type SmokeProjectState = {
+  preparation: PreparationItem[]
+  tests: SmokeTestCase[]
+  drafts: Record<string, ResultDraft>
+}
+
+export type SmokeSuite = {
+  id: string
+  projectId: string
+  name: string
+  description?: string
+  createdAt: string
+}
+
+export type SmokeSuiteState = {
+  suite: SmokeSuite
+  preparation: PreparationItem[]
+  tests: SmokeTestCase[]
+  drafts: Record<string, ResultDraft>
+}
+
+export type Page =
+  | 'Audit'
+  | 'Requirements'
+  | 'Test Plan'
+  | 'Smoke'
+  | 'Checklists'
+  | 'Test Cases'
+
+export type AuditStatus = 'open' | 'in-progress' | 'fixed' | 'verified' | 'wont-fix'
+export type Severity = 'critical' | 'high' | 'medium' | 'low'
+export type AuditType = string
+
+export type AuditDictionaryValue = { id: string; projectId: string; name: string }
+
+export type AuditEvidence = {
+  id: string
+  type: 'image' | 'video'
+  name: string
+  url: string
+  note?: string
+}
+
+export type AuditItem = {
+  id: string
+  projectId: string
+  title: string
+  area: string
+  type: AuditType
+  severity: Severity
+  status: AuditStatus
+  discoveredAt: string
+  location: string
+  description: string
+  expected: string
+  actual: string
+  evidence: AuditEvidence[]
+  evidenceNote?: string
+  comment: string
+  taskUrl: string
+}
+
+// Central project definition. Future relations reference id, never code or a copy.
+export type TestCase = {
+  id: string
+  projectId: string
+  code: string
+  title: string
+  areaId?: string
+  priority: 'critical' | 'high' | 'medium' | 'low'
+  typeId?: string
+  status: 'active' | 'draft' | 'deprecated'
+  preconditions: string[]
+  steps: TestStep[]
+  postconditions?: string[]
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type TestStep = {
+  id: string
+  action: string
+  expectedResult: string
+  sortOrder: number
+}
+
+export type TestCaseDictionaryValue = {
+  id: string
+  projectId: string
+  name: string
+}
+
+export type TestCasesProjectState = {
+  items: TestCase[]
+  areas: TestCaseDictionaryValue[]
+  types: TestCaseDictionaryValue[]
+}
+
+// The sole source of Requirement ↔ Test Case relations is testCaseIds.
+export type Requirement = {
+  id: string
+  projectId: string
+  code: string
+  title: string
+  description: string
+  areaId?: string
+  status: 'draft' | 'approved' | 'deprecated'
+  source?: string
+  notes?: string
+  testCaseIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type RequirementsProjectState = {
+  items: Requirement[]
+  areas: { id: string; projectId: string; name: string }[]
+}

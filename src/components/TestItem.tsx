@@ -1,3 +1,4 @@
+import { RichText } from '@/components/rich-text/RichText'
 import { MoreHorizontal } from 'lucide-react'
 import {
   AccordionItem,
@@ -11,10 +12,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import type { TestCase } from '@/types'
+import type { SmokeTestCase } from '@/types'
 
 type Props = {
-  test: TestCase
+  test: SmokeTestCase
   selected: boolean
   panelOpen: boolean
   onOpenPanel: () => void
@@ -52,39 +53,39 @@ export function TestItem({
             <Button
               size="icon"
               variant="ghost"
-              aria-label={`Действия с тестом ${test.id}`}
+              aria-label={`Дії з тестом ${test.id}`}
             >
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onEdit}>Изменить</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onEdit}>Змінити</DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-              Удалить
+              Видалити
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <AccordionContent className="test-details">
-        <h3>Что проверить</h3>
+        <h3>Що перевірити</h3>
         {test.steps.length ? (
           <ol>
             {test.steps.map((step, index) => (
-              <li key={index}>{step}</li>
+              <li key={index}><RichText value={step} /></li>
             ))}
           </ol>
         ) : (
-          <p className="muted">Описание теста пока не добавлено.</p>
+          <p className="muted">Опис тесту поки не додано.</p>
         )}
-        <h3>Ожидаемый результат</h3>
+        <h3>Очікуваний результат</h3>
         {test.expectedResults.length ? (
           <ol>
             {test.expectedResults.map((result, index) => (
-              <li key={index}>{result}</li>
+              <li key={index}><RichText value={result} /></li>
             ))}
           </ol>
         ) : (
-          <p className="muted">Описание теста пока не добавлено.</p>
+          <p className="muted">Опис тесту поки не додано.</p>
         )}
         {!panelOpen && (
           <Button
@@ -93,7 +94,7 @@ export function TestItem({
             className="mt-4"
             onClick={onOpenPanel}
           >
-            Результаты
+            Результати
           </Button>
         )}
       </AccordionContent>
