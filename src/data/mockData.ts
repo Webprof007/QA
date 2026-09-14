@@ -1,13 +1,8 @@
-import type { PreparationItem, Project, SmokeSuiteState, SmokeTestCase, User } from '@/types'
-
-export const users: User[] = [
-  { id: 'alena', name: 'Alena Minina', email: 'alena@example.com' },
-  { id: 'test-user', name: 'Test User', email: 'test@example.com' },
-]
+import type { PreparationItem, Project, SmokeSuiteState, SmokeTestCase } from '@/types'
 
 export const projects: Project[] = [
-  { id: 'voicli', name: 'Voicli', userIds: ['alena', 'test-user'] },
-  { id: 'qp-notes', name: 'QP Notes', userIds: ['alena', 'test-user'] },
+  { id: 'voicli', name: 'Voicli', userIds: [] },
+  { id: 'qp-notes', name: 'QP Notes', userIds: [] },
 ]
 
 // No prerequisites were supplied. Users can add their own checklist items.

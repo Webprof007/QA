@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { setFieldValue } from '@/test/fields'
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import App from '@/App'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const change = (label: string, value: string) => setFieldValue(screen.getByLabelText(label), value)
 const rows = () => Array.from(document.querySelectorAll<HTMLElement>('.audit-compact-row'))
 const panel = () => screen.getByRole('complementary')
-const openAudit = () => { render(<App />); click('Audit') }
+const openAudit = async () => { await renderAuthenticatedApp(); click('Audit') }
 
 async function projectMenu(item: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
@@ -21,8 +21,8 @@ async function rowMenu(id: string, action: string) {
 }
 
 describe('Audit table-first UX', () => {
-  it('keeps rows compact and uses the right panel as the only detail view', () => {
-    openAudit()
+  it('keeps rows compact and uses the right panel as the only detail view', async () => {
+    await openAudit()
     expect(rows()).toHaveLength(4)
     expect(screen.queryByText('Що виявлено')).toBeNull()
     fireEvent.click(rows()[0])
@@ -37,7 +37,7 @@ describe('Audit table-first UX', () => {
   })
 
   it('combines header filters and clears them only when active', async () => {
-    openAudit()
+    await openAudit()
     expect(screen.queryByRole('button', { name: 'Очистити фільтри' })).toBeNull()
     fireEvent.keyDown(screen.getByRole('button', { name: 'Area' }), { key: 'Enter' })
     fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Landing' }))
@@ -55,7 +55,7 @@ describe('Audit table-first UX', () => {
   })
 
   it('sorts dates newest and oldest from the Date header and filters a date range', async () => {
-    openAudit()
+    await openAudit()
     const dateHeader = screen.getByRole('button', { name: 'Date' })
     fireEvent.click(dateHeader)
     fireEvent.click(await screen.findByRole('radio', { name: 'Спочатку старі' }))
@@ -68,7 +68,7 @@ describe('Audit table-first UX', () => {
   })
 
   it('opens the same right panel for creating an item, then edits and deletes it', async () => {
-    openAudit()
+    await openAudit()
     click('Додати зауваження')
     expect(panel()).toBeTruthy()
     expect(within(panel()).getByText('Новий запис')).toBeTruthy()
@@ -97,7 +97,7 @@ describe('Audit table-first UX', () => {
   })
 
   it('keeps Audit project-specific and QP Notes empty', async () => {
-    openAudit()
+    await openAudit()
     await projectMenu('QP Notes')
     expect(rows()).toHaveLength(0)
     expect(screen.getByText('Зауважень поки немає. Додайте перше зауваження.')).toBeTruthy()
@@ -108,7 +108,7 @@ describe('Audit table-first UX', () => {
 
 describe('Audit dictionaries and combined search', () => {
   it('combines search across ID and title with every category and date, retaining headers for no matches', async () => {
-    openAudit()
+    await openAudit()
     change('Пошук за ID або назвою', 'aud-001')
     expect(rows()).toHaveLength(1)
     change('Пошук за ID або назвою', 'НЕПОМІТНИЙ')
@@ -133,7 +133,7 @@ describe('Audit dictionaries and combined search', () => {
   })
 
   it('creates, renames and deletes project dictionary values and blocks deleting used values', async () => {
-    openAudit()
+    await openAudit()
     fireEvent.click(rows()[0])
     fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))
     click('Видалити Area Registration')

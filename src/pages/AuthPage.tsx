@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import './AuthPage.css'
+import { TurnstileWidget, type TurnstileHandle } from '@/components/auth/TurnstileWidget'
 
 export type AuthInput = {
   name: string
@@ -9,9 +10,11 @@ export type AuthInput = {
   password: string
 }
 
+export type RegisterInput = AuthInput & { captchaToken: string }
+
 type Props = {
   onLogin: (input: AuthInput) => Promise<string | null>
-  onRegister: (input: AuthInput) => Promise<string | null>
+  onRegister: (input: RegisterInput) => Promise<string | null>
 }
 
 export function AuthPage({ onLogin, onRegister }: Props) {
@@ -22,10 +25,12 @@ export function AuthPage({ onLogin, onRegister }: Props) {
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const captcha = useRef<TurnstileHandle>(null)
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (pending) return
+    if (pending || (registering && !captchaToken)) return
     setError('')
     if (registering && !name.trim()) {
       setError('Введіть ім’я.')
@@ -38,9 +43,10 @@ export function AuthPage({ onLogin, onRegister }: Props) {
     setPending(true)
     try {
       const input = { name: name.trim(), email: email.trim().toLowerCase(), password }
-      const message = await (registering ? onRegister(input) : onLogin(input))
-      if (message) setError(message)
+      const message = await (registering ? onRegister({ ...input, captchaToken: captchaToken! }) : onLogin(input))
+      if (message) { setError(message); if (registering) captcha.current?.reset() }
     } catch {
+      if (registering) captcha.current?.reset()
       setError('Не вдалося виконати запит. Спробуйте ще раз.')
     } finally {
       setPending(false)
@@ -48,6 +54,7 @@ export function AuthPage({ onLogin, onRegister }: Props) {
   }
 
   function switchMode() {
+    setCaptchaToken(null)
     setRegistering(current => !current)
     setPassword('')
     setConfirmation('')
@@ -82,8 +89,9 @@ export function AuthPage({ onLogin, onRegister }: Props) {
                 <Input id="auth-confirmation" type="password" autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} />
               </div>
             )}
+            {registering && <TurnstileWidget ref={captcha} onTokenChange={setCaptchaToken} />}
             {error && <p role="alert" className="auth-error">{error}</p>}
-            <Button type="submit" className="auth-submit">{pending ? 'Зачекайте…' : registering ? 'Зареєструватися' : 'Увійти'}</Button>
+            <Button type="submit" disabled={pending || (registering && !captchaToken)} className="auth-submit">{pending ? 'Зачекайте…' : registering ? 'Зареєструватися' : 'Увійти'}</Button>
           </fieldset>
         </form>
         <Button variant="link" onClick={switchMode} disabled={pending} className="auth-switch">

@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { setFieldValue, fieldValue } from '@/test/fields'
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import App from '@/App'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const change = (name: string, value: string) => setFieldValue(screen.getByLabelText(name), value)
 const panel = () => screen.getByRole('complementary', { name: 'Test case panel' })
 const caseRows = () => within(screen.getByRole('table')).queryAllByRole('row').slice(1)
-const start = () => { render(<App />); click('Test Cases') }
+const start = async () => { await renderAuthenticatedApp(); click('Test Cases') }
 const editField = (name: string, value: string) => setFieldValue(within(panel()).getByLabelText(name), value)
 async function menu(trigger: string, action: string, role: 'menuitem' | 'menuitemcheckbox' | 'menuitemradio' = 'menuitem') {
   fireEvent.keyDown(screen.getByRole('button', { name: trigger }), { key: 'Enter' })
@@ -31,8 +31,8 @@ function conditionSection(name: string) {
 }
 
 describe('Project Test Cases', () => {
-  it('keeps Edit outside the form so entering edit mode cannot submit it', () => {
-    start()
+  it('keeps Edit outside the form so entering edit mode cannot submit it', async () => {
+    await start()
     click('Open TC-001')
     const edit = within(panel()).getByRole('button', { name: 'Edit test case' })
     expect(edit.closest('form')).toBeNull()
@@ -47,7 +47,7 @@ describe('Project Test Cases', () => {
   })
 
   it('opens edit mode from row actions and saves the changed title', async () => {
-    start()
+    await start()
     await menu('Actions TC-001', 'Edit')
     expect(within(panel()).getByLabelText('Title')).toBeTruthy()
     editField('Title', 'Updated through row menu')
@@ -57,7 +57,7 @@ describe('Project Test Cases', () => {
     expect(within(panel()).getByRole('heading', { name: 'Updated through row menu' })).toBeTruthy()
   })
   it('creates with auto code, orders structured steps and conditions, then edits and deletes', async () => {
-    start()
+    await start()
     click('+ Add test case')
     expect((screen.getByLabelText('ID/code') as HTMLInputElement).value).toBe('TC-005')
     editField('Title', 'New scenario')
@@ -103,7 +103,7 @@ describe('Project Test Cases', () => {
   })
 
   it('combines Area, Priority, Type and Status with case-insensitive code, id and title search', async () => {
-    start()
+    await start()
     await menu('Area', 'Auth', 'menuitemcheckbox')
     await menu('Priority', 'High', 'menuitemcheckbox')
     await menu('Type', 'Functional', 'menuitemcheckbox')
@@ -127,7 +127,7 @@ describe('Project Test Cases', () => {
   })
 
   it('isolates projects, allows matching codes across projects and retains changes on navigation', async () => {
-    start()
+    await start()
     await project('QP Notes')
     expect(caseRows()).toHaveLength(0)
     click('+ Add test case')
@@ -149,8 +149,8 @@ describe('Project Test Cases', () => {
     expect(caseRows()).toHaveLength(0)
   })
 
-  it('validates required values and duplicate code; cancel preserves the saved definition', () => {
-    start()
+  it('validates required values and duplicate code; cancel preserves the saved definition', async () => {
+    await start()
     click('+ Add test case')
     click('Save test case')
     expect(screen.getByRole('alert').textContent).toContain('code and title')
@@ -172,7 +172,7 @@ describe('Project Test Cases', () => {
   })
 
   it('manages independent project dictionaries, renames references and prevents deletion while used', async () => {
-    start()
+    await start()
     click('Open TC-001')
     click('Edit test case')
     fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))

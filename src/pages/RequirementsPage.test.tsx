@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { setFieldValue } from '@/test/fields'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import App from '@/App'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
 // Radix checkbox sizing uses ResizeObserver, which jsdom does not implement.
@@ -17,7 +17,7 @@ const change = (name: string, value: string) => setFieldValue(screen.getByLabelT
 const panel = () => screen.getByRole('complementary', { name: 'Requirement panel' })
 const rows = () => within(screen.getByRole('table')).getAllByRole('row').slice(1)
 const row = (code: string) => screen.getByRole('button', { name: 'Open ' + code }).closest('tr')!
-const start = () => { render(<App />); click('Requirements') }
+const start = async () => { await renderAuthenticatedApp(); click('Requirements') }
 const check = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
 async function menu(trigger: string, action: string, role: 'menuitem' | 'menuitemcheckbox' = 'menuitem') {
   fireEvent.keyDown(screen.getByRole('button', { name: trigger }), { key: 'Enter' })
@@ -30,7 +30,7 @@ async function project(name: string) {
 
 describe('Requirements and test case relations', () => {
   it('creates with multiple links, edits code, unlinks without deleting tests and deletes a requirement', async () => {
-    start()
+    await start()
     click('+ Add requirement')
     expect((screen.getByLabelText('Code') as HTMLInputElement).value).toBe('REQ-001')
     change('Title', 'Demo requirement')
@@ -76,8 +76,8 @@ describe('Requirements and test case relations', () => {
     expect(rows()).toHaveLength(4)
   })
 
-  it('derives many-to-many reverse links and uses current test case code and title', () => {
-    start()
+  it('derives many-to-many reverse links and uses current test case code and title', async () => {
+    await start()
     click('Test Cases')
     click('Open TC-002')
     const requirements = screen.getByRole('region', { name: 'Requirements' })
@@ -104,7 +104,7 @@ describe('Requirements and test case relations', () => {
   })
 
   it('combines Area, Status, Coverage and case-insensitive search; clears no-match filters', async () => {
-    start()
+    await start()
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull()
     await menu('Area', 'Auth', 'menuitemcheckbox')
     await menu('Status', 'Approved', 'menuitemcheckbox')
@@ -126,7 +126,7 @@ describe('Requirements and test case relations', () => {
   })
 
   it('isolates requirements, link choices and reverse links between projects and initializes new projects empty', async () => {
-    start()
+    await start()
     await project('QP Notes')
     expect(rows()).toHaveLength(0)
     click('+ Add requirement')
@@ -165,7 +165,7 @@ describe('Requirements and test case relations', () => {
   })
 
   it('cleans links and updates Coverage when a test case is deleted', async () => {
-    start()
+    await start()
     expect(row('REQ-AUTH-001').textContent).toContain('2 tests')
     expect(row('REQ-AUTH-002').textContent).toContain('1 test')
     click('Test Cases')
@@ -178,8 +178,8 @@ describe('Requirements and test case relations', () => {
     expect(within(panel()).getByText('No linked test cases.')).toBeTruthy()
   })
 
-  it('validates code, cancels edits and manages Area without deleting used values', () => {
-    start()
+  it('validates code, cancels edits and manages Area without deleting used values', async () => {
+    await start()
     click('+ Add requirement')
     click('Save requirement')
     expect(screen.getByRole('alert').textContent).toContain('code and title')

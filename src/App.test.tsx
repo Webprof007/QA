@@ -4,11 +4,10 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import {
   cleanup,
   fireEvent,
-  render,
   screen,
   within,
 } from '@testing-library/react'
-import App from './App'
+import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
 // jsdom has no layout observer; Radix uses it to size form controls.
@@ -46,8 +45,8 @@ async function menuAction(trigger: string, action: string) {
 }
 
 describe('Smoke MVP', () => {
-  it('shows 16 tests and keeps the draft when closing the panel or switching tests', () => {
-    render(<App />)
+  it('shows 16 tests and keeps the draft when closing the panel or switching tests', async () => {
+    await renderAuthenticatedApp()
     openMainSmoke()
     expect(
       screen.getAllByRole('button', { name: /^SMK-.*(?:Core|Full)/ }),
@@ -76,8 +75,8 @@ describe('Smoke MVP', () => {
     ).toBe('Черновик первой проверки')
   })
 
-  it('stores separate dated results, supports same-day runs and edits only the selected result', () => {
-    render(<App />)
+  it('stores separate dated results, supports same-day runs and edits only the selected result', async () => {
+    await renderAuthenticatedApp()
     openMainSmoke()
     openFirstTest()
     change('Дата', '2026-09-12')
@@ -114,7 +113,7 @@ describe('Smoke MVP', () => {
   })
 
   it('adds, checks, edits and deletes prerequisites', async () => {
-    render(<App />)
+    await renderAuthenticatedApp()
     openMainSmoke()
     click('Додати пункт')
     change('Текст пункту підготовки', 'Подготовить окружение')
@@ -142,7 +141,7 @@ describe('Smoke MVP', () => {
   })
 
   it('validates test IDs, edits step arrays and keeps history when a test ID changes', async () => {
-    render(<App />)
+    await renderAuthenticatedApp()
     openMainSmoke()
     click('Додати тест')
     change('ID', 'SMK-PUB-001')
@@ -182,8 +181,8 @@ async function chooseSidebarItem(trigger: string, item: string) {
 }
 
 describe('Application shell', () => {
-  it('navigates between sections and preserves Smoke drafts on return', () => {
-    render(<App />)
+  it('navigates between sections and preserves Smoke drafts on return', async () => {
+    await renderAuthenticatedApp()
     openMainSmoke()
     const navigation = screen.getByRole('navigation', { name: 'Розділи застосунку' })
     expect(within(navigation).getAllByRole('button').map(button => button.textContent)).toEqual([
@@ -203,7 +202,7 @@ describe('Application shell', () => {
   })
 
   it('isolates prerequisites, tests and result history between projects with matching test IDs', async () => {
-    render(<App />)
+    await renderAuthenticatedApp()
     openMainSmoke()
     click('Додати пункт')
     change('Текст пункту підготовки', 'Подготовка Voicli')
@@ -252,8 +251,8 @@ describe('Application shell', () => {
     expect(within(history()).getAllByRole('listitem')).toHaveLength(1)
   })
 
-  it('does not show Users or the old mock-user switcher in the sidebar', () => {
-    render(<App />)
+  it('does not show Users or the old mock-user switcher in the sidebar', async () => {
+    await renderAuthenticatedApp()
     openMainSmoke()
     expect(screen.queryByRole('button', { name: 'Users' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Current User:/ })).toBeNull()
@@ -261,38 +260,9 @@ describe('Application shell', () => {
 
 })
 
-describe('Demo authentication', () => {
-  it('logs out, registers a new account, rejects duplicate email and logs back in', async () => {
-    render(<App />)
-    openMainSmoke()
-    click('Вийти')
-    expect(screen.getByRole('heading', { level: 1, name: 'Вхід до облікового запису' })).toBeTruthy()
-    click('Створити обліковий запис')
-    change('Ім’я', 'New User')
-    change('Email', 'new@example.com')
-    change('Пароль', 'new-password')
-    change('Повторіть пароль', 'new-password')
-    click('Зареєструватися')
-    expect(screen.getByText('New User')).toBeTruthy()
-    click('Вийти')
-    click('Створити обліковий запис')
-    change('Ім’я', 'Another Name')
-    change('Email', 'new@example.com')
-    change('Пароль', 'another-password')
-    change('Повторіть пароль', 'another-password')
-    click('Зареєструватися')
-    expect((await screen.findByRole('alert')).textContent).toContain('уже зареєстрований')
-    click('Уже є обліковий запис? Увійти')
-    change('Email', 'new@example.com')
-    change('Пароль', 'new-password')
-    click('Увійти')
-    expect(screen.getByText('New User')).toBeTruthy()
-  })
-})
-
 describe('Project management', () => {
   it('validates project names and creates an empty project shared by current users', async () => {
-    render(<App />)
+    await renderAuthenticatedApp()
     openMainSmoke()
     await menuAction('Project: Voicli', 'Додати проєкт')
     change('Назва проєкту', '   ')
@@ -321,7 +291,7 @@ describe('Project management', () => {
   })
 
   it('cancels deletion or removes the selected project and its data without affecting other projects', async () => {
-    render(<App />)
+    await renderAuthenticatedApp()
     openMainSmoke()
     await chooseSidebarItem('Project: Voicli', 'QP Notes')
     click('Додати Smoke')
@@ -367,7 +337,7 @@ describe('Project management', () => {
   })
 
   it('allows creating a project after deleting the last one', async () => {
-    render(<App />)
+    await renderAuthenticatedApp()
     openMainSmoke()
     await menuAction('Project: Voicli', 'Видалити поточний проєкт')
     click('Видалити проєкт')

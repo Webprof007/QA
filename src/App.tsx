@@ -8,26 +8,35 @@ import { AppSidebar } from '@/components/AppSidebar'
 import { ProjectCreateDialog } from '@/components/ProjectCreateDialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { initialSmokeSuitesByProject, projects as initialProjects, users } from '@/data/mockData'
+import { initialSmokeSuitesByProject, projects as initialProjects } from '@/data/mockData'
 import { SmokePage } from '@/pages/SmokePage'
 import { SmokeSuitesPage } from '@/pages/SmokeSuitesPage'
 import { SmokeSuiteDialog } from '@/components/SmokeSuiteDialog'
 import { AuditPage } from '@/pages/AuditPage'
-import { AuthPage, type AuthInput } from '@/pages/AuthPage'
+import { AuthPage } from '@/pages/AuthPage'
 import { initialAuditAreas, initialAuditTypes, initialAuditByProject } from '@/data/auditMockData'
-import type { AuditItem, TestCasesProjectState, Page, Project, SmokeSuite, SmokeSuiteState, User } from '@/types'
+import type { AuditItem, TestCasesProjectState, Page, Project, SmokeSuite, SmokeSuiteState } from '@/types'
 import './AppShell.css'
+import { useAuth, type AuthUser } from '@/hooks/useAuth'
+import { CheckEmailPage } from '@/pages/CheckEmailPage'
+import { errorMessage } from '@/lib/api'
 
 function App() {
-  type Account = User & { password: string }
-  const [accounts, setAccounts] = useState<Account[]>(() => users.map(user => ({
-    ...user,
-    password: 'password123',
-  })))
-  const [projects, setProjects] = useState(initialProjects)
+  const auth = useAuth()
+  if (auth.isAuthLoading) return <main className="auth-page"><p role="status">Завантаження…</p></main>
+  if (auth.initialError) return <main className="auth-page"><div className="auth-content"><p role="alert" className="auth-error">{auth.initialError}</p><Button onClick={() => void auth.retry()}>Спробувати ще раз</Button></div></main>
+  if (!auth.user) return <AuthPage onLogin={auth.login} onRegister={auth.register} />
+  if (auth.status === 'authenticated_unverified') return <CheckEmailPage auth={auth} />
+  return <QAApp key={auth.user.id} currentUser={auth.user} onLogout={auth.logout} />
+}
+
+function QAApp({ currentUser, onLogout }: { currentUser: AuthUser; onLogout: () => Promise<void> }) {
+  // Project membership is still a frontend demo, independent of session authorization.
+  const [projects, setProjects] = useState(() => initialProjects.map(project => ({ ...project, userIds: [String(currentUser.id)] })))
+  const [logoutPending, setLogoutPending] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
   const [creatingProject, setCreatingProject] = useState(false)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(users[0].id)
   const [projectId, setProjectId] = useState(initialProjects[0].id)
   const [page, setPage] = useState<Page>('Smoke')
   const [smokeSuitesByProject, setSmokeSuitesByProject] = useState(initialSmokeSuitesByProject)
@@ -41,28 +50,8 @@ function App() {
   const [auditByProject, setAuditByProject] = useState(initialAuditByProject)
   const [evidenceUrls] = useState(createAuditEvidenceUrls)
   useEffect(() => evidenceUrls.retain(Object.values(auditByProject).flatMap(items => items.flatMap(item => item.evidence.map(file => file.url)))), [auditByProject, evidenceUrls])
-  const currentUser = accounts.find(user => user.id === currentUserId)
-  const availableProjects = currentUser ? projects.filter(project => project.userIds.includes(currentUser.id)) : []
+  const availableProjects = currentUser ? projects.filter(project => project.userIds.includes(String(currentUser.id))) : []
   const project = availableProjects.find(item => item.id === projectId)
-
-  async function login(input: AuthInput): Promise<string | null> {
-    const account = accounts.find(item => item.email === input.email.toLowerCase() && item.password === input.password)
-    if (!account) return 'Неправильний email або пароль.'
-    setCurrentUserId(account.id)
-    setProjectId(projects.find(item => item.userIds.includes(account.id))?.id ?? '')
-    setPage('Smoke')
-    return null
-  }
-
-  async function register(input: AuthInput): Promise<string | null> {
-    if (accounts.some(account => account.email === input.email.toLowerCase())) return 'Користувач із таким email уже зареєстрований.'
-    const account: Account = { id: crypto.randomUUID(), name: input.name, email: input.email.toLowerCase(), password: input.password }
-    setAccounts(current => [...current, account])
-    setCurrentUserId(account.id)
-    setProjectId('')
-    setPage('Smoke')
-    return null
-  }
 
   function changeProject(id: string) {
     if (availableProjects.some(item => item.id === id)) { setProjectId(id); setSelectedSuiteId('') }
@@ -80,7 +69,7 @@ function App() {
     const newProject: Project = {
       id: crypto.randomUUID(),
       name,
-      userIds: [currentUser.id],
+      userIds: [String(currentUser.id)],
     }
     setProjects(current => [...current, newProject])
     setRequirementsByProject(current => ({ ...current, [newProject.id]: emptyRequirementsProject() }))
@@ -114,13 +103,12 @@ function App() {
     setDeletingSuite(null)
   }
 
-  function logout() {
-    setCurrentUserId(null)
-    setProjectId('')
-    setPage('Smoke')
+  async function logout() {
+    if (logoutPending) return
+    setLogoutPending(true); setLogoutError('')
+    try { await onLogout() } catch (error) { setLogoutError(errorMessage(error)) }
+    finally { setLogoutPending(false) }
   }
-
-  if (!currentUser) return <AuthPage onLogin={login} onRegister={register} />
 
   function deleteProject() {
     if (!deletingProject) return
@@ -185,7 +173,8 @@ function App() {
           {page === 'Smoke' && project && selectedSuiteId && (
             <Button variant="ghost" size="sm" className="account-back" onClick={() => setSelectedSuiteId('')}>← Smoke</Button>
           )}
-          <span>{currentUser.name}</span><Button variant="ghost" size="sm" onClick={logout}>Вийти</Button>
+          <span>{currentUser.name}</span><Button variant="ghost" size="sm" disabled={logoutPending} onClick={() => void logout()}>{logoutPending ? 'Зачекайте…' : 'Вийти'}</Button>
+          {logoutError && <p role="alert" className="auth-error">{logoutError}</p>}
         </div>
         {page === 'Smoke' && project && selectedSuiteId ? (
           <SmokePage

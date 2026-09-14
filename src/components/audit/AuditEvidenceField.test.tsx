@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { setFieldValue, fieldValue } from '@/test/fields'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within, act } from '@testing-library/react'
-import App from '@/App'
+import { cleanup, fireEvent, screen, within, act } from '@testing-library/react'
+import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { evidenceFileType } from '@/lib/auditEvidenceUrls'
 
 let sequence = 0
@@ -21,10 +21,10 @@ const files = () => screen.getByLabelText('Evidence files')
 const add = (...uploads: File[]) => fireEvent.change(files(), { target: { files: uploads } })
 const image = () => new File(['image'], 'login.png', { type: 'image/png' })
 const video = () => new File(['video'], 'mobile.mp4', { type: 'video/mp4' })
-function open() { render(<App />); click('Audit'); click('Додати зауваження') }
+async function open() { await renderAuthenticatedApp(); click('Audit'); click('Додати зауваження') }
 
 describe('Audit Evidence attachments', () => {
-  it('classifies supported images and videos and checks MOV browser support', () => {
+  it('classifies supported images and videos and checks MOV browser support', async () => {
     for (const mime of ['image/png', 'image/jpeg', 'image/webp']) expect(evidenceFileType(new File([''], 'file', { type: mime }))).toBe('image')
     for (const mime of ['video/mp4', 'video/webm']) expect(evidenceFileType(new File([''], 'file', { type: mime }))).toBe('video')
     const canPlay = vi.spyOn(HTMLMediaElement.prototype, 'canPlayType')
@@ -37,7 +37,7 @@ describe('Audit Evidence attachments', () => {
   })
 
   it('adds images and multiple files, opens preview, removes one and saves the others with a note', async () => {
-    open()
+    await open()
     add(image())
     const firstUrl = screen.getByRole('img', { name: 'login.png' }).getAttribute('src')
     click('Preview login.png')
@@ -76,7 +76,7 @@ describe('Audit Evidence attachments', () => {
   })
 
   it('releases abandoned new files, rejects unsupported files and allows no evidence', async () => {
-    open()
+    await open()
     add(new File([''], 'bad.pdf', { type: 'application/pdf' }))
     expect(screen.getByRole('alert').textContent).toContain('bad.pdf')
     expect(URL.createObjectURL).not.toHaveBeenCalled()
