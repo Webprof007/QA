@@ -1,5 +1,6 @@
 import { RichText } from '@/components/rich-text/RichText'
-import { useContext } from 'react'
+import { EntityLinkPicker } from '@/components/coverage/EntityLinkPicker'
+import { useContext, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,10 +31,12 @@ function Conditions({ label, values, editing, onChange }: { label: string; value
 }
 
 type Props = {
+  allRequirements?: Requirement[]; onRequirementsChange?: (ids: string[]) => void;
   requirements: Requirement[]; item: TestCase; mode: 'view' | 'create' | 'edit'; error: string
   onChange: (item: TestCase) => void; onSave: () => void; onEdit: () => void; onCancel: () => void; onClose: () => void
 }
-export function TestCasePanel({ requirements, item, mode, error, onChange, onSave, onEdit, onCancel, onClose }: Props) {
+export function TestCasePanel({ allRequirements = [], onRequirementsChange, requirements, item, mode, error, onChange, onSave, onEdit, onCancel, onClose }: Props) {
+  const [pickerOpen, setPickerOpen] = useState(false)
   const dictionary = useContext(DictionaryContext)
   const editing = mode !== 'view'
   const patch = (value: Partial<TestCase>) => onChange({ ...item, ...value })
@@ -72,9 +75,11 @@ export function TestCasePanel({ requirements, item, mode, error, onChange, onSav
       <div className="field"><label id="tc-notes-label" htmlFor="tc-notes">Notes</label>{editing ? <RichTextEditor id="tc-notes" rows={3} value={item.notes ?? ''} onValueChange={value => patch({ notes: value })} /> : <RichText value={item.notes || '—'} />}</div>
       {!editing && <section className="tc-section" aria-label="Requirements"><h3>Requirements</h3>
         {requirements.length ? <ul>{requirements.map(requirement => <li key={requirement.id}><span className="test-id">{requirement.code}</span> {requirement.title}</li>)}</ul> : <p className="muted">No linked requirements.</p>}
+        {onRequirementsChange && <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>Manage Requirements</Button>}
       </section>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {editing && <div className="tc-panel-actions"><Button type="submit">Save test case</Button><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button></div>}
     </form>
+    {pickerOpen && <EntityLinkPicker kind="requirements" testCases={allRequirements.filter(value => value.projectId === item.projectId).map(value => ({ ...value, area: dictionary.area.find(area => area.id === value.areaId)?.name }))} selectedIds={requirements.map(value => value.id)} onClose={() => setPickerOpen(false)} onApply={ids => { onRequirementsChange?.(ids); setPickerOpen(false) }} />}
   </aside>
 }

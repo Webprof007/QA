@@ -21,6 +21,7 @@ describe('Test Plan', () => {
     expect(screen.getByText('Плани тестування поки не створено.')).toBeTruthy()
     click('New Test Plan'); change('Title', 'Release validation'); change('Objective', 'Check critical flows'); change('Version', '2.0'); change('Status', 'Active'); change('Start date', '2026-09-14'); change('End date', '2026-09-15'); click('Save')
     expect(screen.getByText('Release validation')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '← Test Plans' }).closest('.account-bar')).not.toBeNull()
     click('Edit'); change('Objective', 'Discard me'); click('Cancel')
     expect(screen.queryByText('Discard me')).toBeNull()
     expect(screen.getByText('Check critical flows')).toBeTruthy()

@@ -20,7 +20,7 @@ const row = (code: string) => screen.getByRole('button', { name: 'Open ' + code 
 const start = async () => { await renderAuthenticatedApp(); click('Requirements') }
 const check = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
 async function menu(trigger: string, action: string, role: 'menuitem' | 'menuitemcheckbox' = 'menuitem') {
-  fireEvent.keyDown(screen.getByRole('button', { name: trigger }), { key: 'Enter' })
+  fireEvent.keyDown((trigger === 'Coverage' ? within(screen.getByRole('table')) : screen).getByRole('button', { name: trigger }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole(role, { name: action }))
 }
 async function project(name: string) {

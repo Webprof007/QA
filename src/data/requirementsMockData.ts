@@ -1,4 +1,5 @@
-import type { Requirement, RequirementsProjectState } from '@/types'
+import { initialProjectAreas } from './projectAreasMockData'
+import type { Requirement, RequirementTestCaseLink, RequirementsProjectState } from '@/types'
 import { initialTestCasesByProject } from './testCasesMockData'
 
 export const emptyRequirementsProject = (): RequirementsProjectState => ({ items: [], areas: [] })
@@ -10,16 +11,15 @@ const examples = [
   ['REQ-NAV-001', 'User can navigate between pages', 'Navigation', 'draft', []],
 ] as const
 
-const items: Requirement[] = examples.map(([code, title, area, status, codes], index) => ({
+const items: Requirement[] = examples.map(([code, title, area, status], index) => ({
   id: `demo-requirement-${index + 1}`,
   projectId: 'voicli',
   code, title,
   description: 'Illustrative requirement for a demo environment. Confirm the expected behavior with the product team.',
-  areaId: `req-area-${area.toLowerCase()}`,
+  areaId: `tc-area-${area.toLowerCase()}`,
   status,
   source: 'Demo specification',
   notes: 'Adapt this example to the actual product requirements.',
-  testCaseIds: initialTestCasesByProject.voicli.items.filter(test => codes.some(code => code === test.code)).map(test => test.id),
   createdAt: '2026-09-13T00:00:00.000Z',
   updatedAt: '2026-09-13T00:00:00.000Z',
 }))
@@ -27,7 +27,12 @@ const items: Requirement[] = examples.map(([code, title, area, status, codes], i
 export const initialRequirementsByProject: Record<string, RequirementsProjectState> = {
   voicli: {
     items,
-    areas: [...new Set(examples.map(row => row[2]))].map(name => ({ id: `req-area-${name.toLowerCase()}`, projectId: 'voicli', name })),
+    areas: initialProjectAreas.filter(area => area.projectId === 'voicli'),
   },
   'qp-notes': emptyRequirementsProject(),
 }
+
+export const initialRequirementTestCaseLinks: RequirementTestCaseLink[] = examples.flatMap((example, index) =>
+  initialTestCasesByProject.voicli.items.filter(test => example[4].some(code => code === test.code))
+    .map(test => ({ projectId: 'voicli', requirementId: items[index].id, testCaseId: test.id })),
+)

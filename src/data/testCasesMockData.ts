@@ -1,3 +1,4 @@
+import { initialProjectAreas } from './projectAreasMockData'
 import type { TestCase, TestCasesProjectState } from '@/types'
 
 export const emptyTestCasesProject = (): TestCasesProjectState => ({ items: [], areas: [], types: [] })
@@ -29,7 +30,7 @@ const items: TestCase[] = examples.map(([title, area, type, priority, status, ac
 export const initialTestCasesByProject: Record<string, TestCasesProjectState> = {
   voicli: {
     items,
-    areas: [...new Set(examples.map(row => row[1]))].map(name => ({ id: `tc-area-${name.toLowerCase()}`, projectId: 'voicli', name })),
+    areas: initialProjectAreas.filter(area => area.projectId === 'voicli'),
     types: [...new Set(examples.map(row => row[2]))].map(name => ({ id: `tc-type-${name.toLowerCase()}`, projectId: 'voicli', name })),
   },
   'qp-notes': emptyTestCasesProject(),

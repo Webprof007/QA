@@ -1,0 +1,24 @@
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { defectSeverities, defectPriorities, defectStatuses, safeExternalUrl } from '@/lib/defects'
+import type { Defect, ProjectArea, TestExecution, TestRun } from '@/types'
+export function DefectPanel({ item, editing, error, areas, source, run, onChange, onSave, onEdit, onCancel, onClose, onExecution }: { item: Defect; editing: boolean; error: string; areas: ProjectArea[]; source?: TestExecution; run?: TestRun; onChange: (item: Defect) => void; onSave: () => void; onEdit: () => void; onCancel: () => void; onClose: () => void; onExecution: (id: string) => void }) {
+  return <aside className="tc-panel" aria-label="Defect panel"><div className="panel-heading"><div><p className="test-id">{item.code}</p><h2>{editing ? 'Defect' : item.title}</h2></div><Button variant="ghost" onClick={onClose}>Close defect</Button></div>
+    <form className="tc-form" onSubmit={event => { event.preventDefault(); onSave() }}>
+      {!editing && <Button type="button" variant="outline" onClick={onEdit}>Edit Defect</Button>}
+      <div className="field"><label htmlFor="defect-title">Title</label>{editing ? <Input id="defect-title" required value={item.title} onChange={event => onChange({ ...item, title: event.target.value })} /> : <p>{item.title}</p>}</div>
+      {([['description', 'Description'], ['stepsToReproduce', 'Steps to reproduce / Кроки відтворення'], ['expectedResult', 'Expected result / Очікуваний результат'], ['actualResult', 'Actual result / Фактичний результат']] as const).map(([key, label]) => <div className="field" key={key}><label htmlFor={`defect-${key}`}>{label}</label>{editing ? <Textarea id={`defect-${key}`} rows={3} value={item[key]} onChange={event => onChange({ ...item, [key]: event.target.value })} /> : <p>{item[key] || '—'}</p>}</div>)}
+      <div className="tc-field-pair">{([['severity', 'Severity', defectSeverities], ['priority', 'Priority', defectPriorities], ['status', 'Status', defectStatuses]] as const).map(([key, label, values]) => <div className="field" key={key}><label htmlFor={`defect-${key}`}>{label}</label>{editing ? <select id={`defect-${key}`} className="audit-select" value={item[key]} onChange={event => onChange({ ...item, [key]: event.target.value })}>{values.map(value => <option key={value}>{value}</option>)}</select> : <p>{item[key]}</p>}</div>)}
+        <div className="field"><label htmlFor="defect-area">Area</label>{editing ? <select id="defect-area" className="audit-select" value={item.areaId ?? ''} onChange={event => onChange({ ...item, areaId: event.target.value || undefined })}><option value="">—</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select> : <p>{areas.find(area => area.id === item.areaId)?.name || '—'}</p>}</div>
+        {([['environment', 'Environment / Середовище'], ['build', 'Build / Збірка'], ['browser', 'Browser'], ['deviceOrOs', 'Device / OS']] as const).map(([key, label]) => <div className="field" key={key}><label htmlFor={`defect-${key}`}>{label}</label>{editing ? <Input id={`defect-${key}`} value={item[key]} onChange={event => onChange({ ...item, [key]: event.target.value })} /> : <p>{item[key] || '—'}</p>}</div>)}
+      </div>
+      <div className="field"><label htmlFor="defect-evidence">Evidence / Notes</label>{editing ? <Textarea id="defect-evidence" rows={3} value={item.evidenceNote} onChange={event => onChange({ ...item, evidenceNote: event.target.value })} /> : <p>{item.evidenceNote || '—'}</p>}</div>
+      <div className="field"><label htmlFor="defect-external">External task URL</label>{editing ? <Input id="defect-external" type="url" value={item.externalTaskUrl ?? ''} onChange={event => onChange({ ...item, externalTaskUrl: event.target.value })} /> : safeExternalUrl(item.externalTaskUrl) ? <a href={safeExternalUrl(item.externalTaskUrl)} target="_blank" rel="noopener noreferrer">Open external task</a> : <p>—</p>}</div>
+      {source && run && <section className="tc-section" aria-label="Source"><h3>Source</h3><p>Test Run: {run.name}</p><p>Test Case: {source.testCaseSnapshot.code} — {source.testCaseSnapshot.title}</p><p>Execution Result: {source.result}</p><p>Executed at: {source.executedAt ? new Date(source.executedAt).toLocaleString() : '—'}</p><Button type="button" variant="outline" disabled={editing} onClick={() => onExecution(source.id)}>View Execution</Button></section>}
+      {!editing && <p>Created by: {item.createdByUserId ?? '—'}</p>}
+      {error && <p role="alert" className="form-error">{error}</p>}
+      {editing && <div className="tc-panel-actions"><Button type="submit">Save Defect</Button><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button></div>}
+    </form>
+  </aside>
+}

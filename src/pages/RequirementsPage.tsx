@@ -4,14 +4,14 @@ import { RequirementTable, type RequirementFilters } from '@/components/requirem
 import { RequirementPanel } from '@/components/requirements/RequirementPanel'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import type { Requirement, RequirementsProjectState, TestCase } from '@/types'
+import type { RequirementWithTestCases as Requirement, RequirementsViewState as RequirementsProjectState, TestCase } from '@/types'
 import '../App.css'
 import './AuditPage.css'
 import './TestCasesPage.css'
 import './RequirementsPage.css'
 
-type Props = { areaInUse?: (id: string) => boolean; projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>> }
-export function RequirementsPage({ areaInUse, projectId, data, testCases, onChange }: Props) {
+type Props = { types?: import('@/types').TestCaseDictionaryValue[]; areaInUse?: (id: string) => boolean; projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>> }
+export function RequirementsPage({ types = [], areaInUse, projectId, data, testCases, onChange }: Props) {
   const [filters, setFilters] = useState<RequirementFilters>({ search: '', areaId: '', status: '', coverage: '' })
   const [selectedId, setSelectedId] = useState('')
   const [mode, setMode] = useState<'view' | 'create' | 'edit'>('view')
@@ -36,6 +36,7 @@ export function RequirementsPage({ areaInUse, projectId, data, testCases, onChan
   }
   function save() {
     if (!draft) return
+    if (draft.areaId && !areas.some(area => area.id === draft.areaId)) { setError('Виберіть Area поточного проєкту.'); return }
     const code = draft.code.trim()
     if (!code || !draft.title.trim()) { setError('Enter a code and title.'); return }
     if (items.some(item => item.id !== draft.id && item.code.toLowerCase() === code.toLowerCase())) { setError('This code already exists in this project.'); return }
@@ -52,7 +53,7 @@ export function RequirementsPage({ areaInUse, projectId, data, testCases, onChan
     setDeleting(null)
   }
   const dictionary = {
-    area: areas, type: [],
+    area: areas, type: types.filter(item => item.projectId === projectId),
     save(kind: DictionaryKind, name: string, id?: string) {
       if (kind !== 'area') return ''
       const value = { id: id ?? crypto.randomUUID(), projectId, name }
@@ -79,7 +80,7 @@ export function RequirementsPage({ areaInUse, projectId, data, testCases, onChan
     <header className="page-heading"><h1>Requirements</h1></header>
     <div className={`tc-layout ${active ? 'tc-with-panel' : ''}`}>
       <RequirementTable items={visible} areas={areas} selectedId={selectedId} filters={filters} onFilters={setFilters} onOpen={item => open(item)} onEdit={item => open(item, true)} onDelete={setDeleting} onAdd={add} />
-      {active && <RequirementPanel key={active.id + mode} item={active} testCases={available} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
+      {active && <RequirementPanel onLinkTestCases={testCaseIds => onChange(current => ({ ...current, items: current.items.map(item => item.id === active.id ? { ...item, testCaseIds } : item) }))} key={active.id + mode} item={active} testCases={available} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
     </div>
     <Dialog open={Boolean(deleting)} onOpenChange={value => { if (!value) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Delete {deleting?.code}?</DialogTitle><DialogDescription>This removes the requirement and its links. Test cases will be kept.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={remove}>Delete requirement</Button></DialogFooter></DialogContent></Dialog>
   </main></DictionaryContext.Provider>

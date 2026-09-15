@@ -10,7 +10,7 @@ const cases = Array.from({ length: 22 }, (_, index) => ({ ...initialTestCasesByP
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const change = (name: string, value: string) => fireEvent.change(screen.getByLabelText(name), { target: { value } })
 describe('Test case link picker', () => {
-  it('paginates a large list and retains selections across pages and filters until Apply', () => {
+  it('paginates a large list and retains selections across pages and filters until Apply', async () => {
     const apply = vi.fn()
     render(<TestCaseLinkPicker testCases={cases} selectedIds={['case-0']} onApply={apply} onClose={vi.fn()} />)
     expect(screen.getAllByRole('checkbox')).toHaveLength(9) // 8 results plus Selected only.
@@ -19,11 +19,13 @@ describe('Test case link picker', () => {
     change('Search test cases', 'SCENARIO 21')
     fireEvent.click(screen.getByRole('checkbox', { name: 'TC-022 Scenario 21' }))
     change('Search test cases', '')
-    change('Test case status', 'draft')
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Status' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Draft' }))
     expect(screen.queryByRole('checkbox', { name: 'TC-001 Scenario 0' })).toBeNull()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Selected only' }))
     expect(screen.getByRole('checkbox', { name: 'TC-022 Scenario 21' }).getAttribute('aria-checked')).toBe('true')
-    change('Test case status', '')
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Status' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'All' }))
     expect(screen.getAllByRole('checkbox')).toHaveLength(4)
     expect(apply).not.toHaveBeenCalled()
     click('Apply selection')

@@ -83,7 +83,7 @@
 .suite-data:hover, .suite-data:focus-visible { background: var(--muted); outline: none; }
 .suite-name { font-weight: 500; }
 
-.account-back { margin-right: auto; }
+.account-back-slot { margin-right: auto; min-width: 0; }
 
 .account-bar {
   display: flex;

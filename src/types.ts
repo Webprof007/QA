@@ -1,61 +1,35 @@
 export type Project = {
   id: string
   name: string
-  userIds: string[]
-}
-
-export type PreparationItem = {
-  id: string
-  projectId: string
-  smokeSuiteId: string
-  text: string
-  checked: boolean
-  sortOrder: number
-}
-
-export type TestResult = {
-  id: string
-  projectId: string
-  date: string
-  completed: boolean
-  status: 'pass' | 'fail' | 'blocked' | null
-  comment: string
-  taskUrl: string
-}
-
-export type SmokeTestCase = {
-  id: string
-  projectId: string
-  smokeSuiteId: string
-  title: string
-  profile: string
-  estimatedMinutes: number
-  steps: string[]
-  expectedResults: string[]
-  results: TestResult[]
-}
-
-export type ResultDraft = Omit<TestResult, 'id'> & { id?: string }
-
-export type SmokeProjectState = {
-  preparation: PreparationItem[]
-  tests: SmokeTestCase[]
-  drafts: Record<string, ResultDraft>
+  userIds: number[]
 }
 
 export type SmokeSuite = {
-  id: string
-  projectId: string
-  name: string
-  description?: string
-  createdAt: string
+  id: string; projectId: string; code: string; name: string; description: string
+  createdAt: string; updatedAt: string
 }
-
-export type SmokeSuiteState = {
-  suite: SmokeSuite
-  preparation: PreparationItem[]
-  tests: SmokeTestCase[]
-  drafts: Record<string, ResultDraft>
+export type SmokeSuiteTestCaseLink = { projectId: string; suiteId: string; testCaseId: string; order: number }
+export type SmokePrerequisite = { id: string; projectId: string; suiteId: string; text: string; order: number }
+export type SmokeRunStatus = 'Draft' | 'In Progress' | 'Completed'
+export type SmokeExecutionResult = 'Not Run' | 'Pass' | 'Fail' | 'Blocked' | 'Skipped'
+export type SmokeRun = {
+  id: string; projectId: string; suiteId: string; suiteCodeSnapshot: string; suiteNameSnapshot: string
+  environment: string; build: string; browser: string; deviceOrOs: string; notes: string
+  status: SmokeRunStatus; startedAt?: string; completedAt?: string; createdByUserId?: number
+  createdAt: string; updatedAt: string
+}
+export type SmokeRunPrerequisite = {
+  id: string; projectId: string; runId: string; sourcePrerequisiteId?: string; order: number
+  textSnapshot: string; result: 'Not Checked' | 'Pass' | 'Fail'; comment: string
+}
+export type SmokeExecution = {
+  id: string; projectId: string; runId: string; testCaseId: string; order: number
+  testCaseSnapshot: TestCaseSnapshot; result: SmokeExecutionResult
+  actualResult: string; comment: string; evidenceNote: string; executedByUserId?: number; executedAt?: string
+}
+export type SmokeState = {
+  suites: SmokeSuite[]; links: SmokeSuiteTestCaseLink[]; prerequisites: SmokePrerequisite[]
+  runs: SmokeRun[]; runPrerequisites: SmokeRunPrerequisite[]; executions: SmokeExecution[]
 }
 
 export type Page =
@@ -65,9 +39,12 @@ export type Page =
   | 'Smoke'
   | 'Checklists'
   | 'Test Cases'
+  | 'Test Runs'
+  | 'Defects'
+  | 'Coverage'
 
 export type AuditStatus = 'open' | 'in-progress' | 'fixed' | 'verified' | 'wont-fix'
-export type Severity = 'critical' | 'high' | 'medium' | 'low'
+export type AuditSeverity = 'critical' | 'high' | 'medium' | 'low'
 export type AuditType = string
 
 export type AuditDictionaryValue = { id: string; projectId: string; name: string }
@@ -84,9 +61,9 @@ export type AuditItem = {
   id: string
   projectId: string
   title: string
-  area: string
+  areaId: string
   type: AuditType
-  severity: Severity
+  severity: AuditSeverity
   status: AuditStatus
   discoveredAt: string
   location: string
@@ -130,14 +107,16 @@ export type TestCaseDictionaryValue = {
   name: string
 }
 
+// Page view input; App stores definitions/types and injects the shared areas array.
 export type TestCasesProjectState = {
   items: TestCase[]
-  areas: TestCaseDictionaryValue[]
+  areas: ProjectArea[]
   types: TestCaseDictionaryValue[]
 }
 
-// The sole source of Requirement ↔ Test Case relations is testCaseIds.
+// Definitions are stored once; relations live in RequirementTestCaseLink[].
 export type Requirement = {
+  priority?: TestCase['priority']
   id: string
   projectId: string
   code: string
@@ -147,14 +126,14 @@ export type Requirement = {
   status: 'draft' | 'approved' | 'deprecated'
   source?: string
   notes?: string
-  testCaseIds: string[]
   createdAt: string
   updatedAt: string
 }
 
+// Page/seed view input; areas are not a second module-owned catalog.
 export type RequirementsProjectState = {
   items: Requirement[]
-  areas: { id: string; projectId: string; name: string }[]
+  areas: ProjectArea[]
 }
 
 export type ProjectArea = { id: string; projectId: string; name: string }
@@ -179,3 +158,42 @@ export type ChecklistRun = {
   startedAt: string; completedAt: string | null; status: 'In Progress' | 'Completed'
   items: ChecklistRunItem[]
 }
+
+export type TestRunStatus = 'Draft' | 'In Progress' | 'Completed'
+export type TestExecutionResult = 'Not Run' | 'Pass' | 'Fail' | 'Blocked' | 'Skipped'
+// Reuse the definition's structured steps and conditions, freezing dictionary labels too.
+export type TestCaseSnapshot = Omit<TestCase, 'projectId' | 'createdAt' | 'updatedAt'> & { areaName: string; typeName: string }
+export type TestRun = {
+  id: string; projectId: string; name: string; testPlanId?: string | null
+  testPlanTitleSnapshot?: string
+  environment: string; build: string; browser: string; deviceOrOs: string
+  status: TestRunStatus; startedAt: string | null; completedAt: string | null
+  notes: string; createdAt: string; updatedAt: string
+}
+export type TestExecution = {
+  id: string; projectId: string; runId: string; testCaseId: string
+  testCaseSnapshot: TestCaseSnapshot; result: TestExecutionResult
+  actualResult: string; comment: string; evidenceNote: string
+  executedByUserId?: number; executedAt?: string
+}
+export type TestRunsState = { runs: TestRun[]; executions: TestExecution[] }
+
+export type DefectSeverity = 'Blocker' | 'Critical' | 'Major' | 'Minor' | 'Trivial'
+export type DefectPriority = 'Highest' | 'High' | 'Medium' | 'Low'
+export type DefectStatus = 'New' | 'Open' | 'In Progress' | 'Ready for Retest' | 'Closed' | 'Rejected' | 'Duplicate'
+export type Defect = {
+  id: string; projectId: string; code: string; title: string; description: string
+  stepsToReproduce: string; expectedResult: string; actualResult: string
+  severity: DefectSeverity; priority: DefectPriority; status: DefectStatus; areaId?: string
+  environment: string; build: string; browser: string; deviceOrOs: string; evidenceNote: string
+  sourceExecutionId?: string; sourceTestCaseId?: string; externalTaskUrl?: string
+  createdByUserId?: number; createdAt: string; updatedAt: string
+}
+// Many-to-many links live outside historical execution records. Source identifies origin only.
+export type ExecutionDefectLink = { projectId: string; executionId: string; defectId: string }
+export type DefectsState = { items: Defect[]; links: ExecutionDefectLink[] }
+
+export type RequirementTestCaseLink = { projectId: string; requirementId: string; testCaseId: string }
+// Derived view/editor draft only. Never stored alongside the relation state.
+export type RequirementWithTestCases = Requirement & { testCaseIds: string[] }
+export type RequirementsViewState = Omit<RequirementsProjectState, 'items'> & { items: RequirementWithTestCases[] }

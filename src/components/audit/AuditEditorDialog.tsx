@@ -16,7 +16,7 @@ export function AuditEditorDialog({ createEvidenceUrl, initialItem, creating, on
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!item.title.trim()) { setError('Введіть назву зауваження.'); return }
-    onSave({ ...item, title: item.title.trim(), area: item.area.trim() })
+    onSave({ ...item, title: item.title.trim(), areaId: item.areaId.trim() })
   }
 
   return <Dialog open onOpenChange={open => { if (!open) onClose() }}>

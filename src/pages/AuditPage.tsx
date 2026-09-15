@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { AuditList, type AuditFilters, type AuditSortKey } from '@/components/audit/AuditList'
 import { AuditWorkspacePanel } from '@/components/audit/AuditWorkspacePanel'
-import type { AuditDictionaryValue, AuditItem } from '@/types'
+import type { AuditDictionaryValue, ProjectArea, AuditItem } from '@/types'
 import '../App.css'
 import './AuditPage.css'
 
-type Props = { areaInUse?: (id: string) => boolean; evidenceUrls: AuditEvidenceUrls; auditAreas: AuditDictionaryValue[]; auditTypes: AuditDictionaryValue[]; onAreasChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; onTypesChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; projectId: string; items: AuditItem[]; onChange: Dispatch<SetStateAction<AuditItem[]>> }
+type Props = { areaInUse?: (id: string) => boolean; evidenceUrls: AuditEvidenceUrls; auditAreas: ProjectArea[]; auditTypes: AuditDictionaryValue[]; onAreasChange: Dispatch<SetStateAction<ProjectArea[]>>; onTypesChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; projectId: string; items: AuditItem[]; onChange: Dispatch<SetStateAction<AuditItem[]>> }
 const emptyFilters: AuditFilters = { search: '', area: '', type: '', severity: '', status: '', from: '', to: '' }
 
 export function AuditPage({ areaInUse, evidenceUrls, projectId, items, onChange, auditAreas, auditTypes, onAreasChange, onTypesChange }: Props) {
@@ -25,15 +25,16 @@ export function AuditPage({ areaInUse, evidenceUrls, projectId, items, onChange,
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
 
-  const filteredItems = items.filter(item => {
+  const projectItems = items.filter(item => item.projectId === projectId)
+  const filteredItems = projectItems.filter(item => {
     const search = filters.search.trim().toLowerCase()
-    return (!search || item.id.toLowerCase().includes(search) || item.title.toLowerCase().includes(search)) && (!filters.area || item.area === filters.area) && (!filters.type || item.type === filters.type) && (!filters.severity || item.severity === filters.severity) && (!filters.status || item.status === filters.status) && (!filters.from || item.discoveredAt >= filters.from) && (!filters.to || item.discoveredAt <= filters.to)
+    return (!search || item.id.toLowerCase().includes(search) || item.title.toLowerCase().includes(search)) && (!filters.area || item.areaId === filters.area) && (!filters.type || item.type === filters.type) && (!filters.severity || item.severity === filters.severity) && (!filters.status || item.status === filters.status) && (!filters.from || item.discoveredAt >= filters.from) && (!filters.to || item.discoveredAt <= filters.to)
   }).sort((a, b) => {
     const sortValue = (item: AuditItem) => {
       if (sort.key === 'date') return item.discoveredAt
       if (sort.key === 'area' || sort.key === 'type') {
         const values = sort.key === 'area' ? auditAreas : auditTypes
-        return values.find(value => value.projectId === projectId && value.id === item[sort.key as 'area' | 'type'])?.name ?? ''
+        return values.find(value => value.projectId === projectId && value.id === item[sort.key === 'area' ? 'areaId' : 'type'])?.name ?? ''
       }
       return item[sort.key]
     }
@@ -41,28 +42,30 @@ export function AuditPage({ areaInUse, evidenceUrls, projectId, items, onChange,
     const valueB = sortValue(b)
     return String(valueA).localeCompare(String(valueB)) * (sort.direction === 'asc' ? 1 : -1)
   })
-  const selected = newItem ?? items.find(item => item.id === selectedId)
+  const selected = newItem ?? projectItems.find(item => item.id === selectedId)
   const activeItem = selected ? (drafts[selected.id] ?? selected) : undefined
   const hasFilters = Object.values(filters).some(Boolean)
 
   function selectItem(id: string) { setNewItem(null); setSelectedId(id); setPanelOpen(Boolean(id)); setNotice(''); setError('') }
   function toggleSort(key: AuditSortKey) { setSort(current => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' })) }
   function addItem() {
-    const number = Math.max(0, ...items.map(item => Number(item.id.replace(/^AUD-/, '')) || 0)) + 1
+    const number = Math.max(0, ...projectItems.map(item => Number(item.id.replace(/^AUD-/, '')) || 0)) + 1
     const today = new Date(); const discoveredAt = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    setNewItem({ id: `AUD-${String(number).padStart(3, '0')}`, projectId, title: '', area: '', type: '', severity: 'medium', status: 'open', discoveredAt, location: '', description: '', expected: '', actual: '', evidence: [], comment: '', taskUrl: '' })
+    setNewItem({ id: `AUD-${String(number).padStart(3, '0')}`, projectId, title: '', areaId: '', type: '', severity: 'medium', status: 'open', discoveredAt, location: '', description: '', expected: '', actual: '', evidence: [], comment: '', taskUrl: '' })
     setSelectedId(''); setPanelOpen(true); setNotice(''); setError('')
   }
   function updateActive(item: AuditItem) { if (newItem) setNewItem(item); else setDrafts(current => ({ ...current, [item.id]: item })); setError(''); setNotice('') }
   function saveActive() {
     if (!activeItem) return
     if (!activeItem.title.trim()) { setError('Введіть назву зауваження.'); return }
-    const saved = { ...activeItem, projectId, title: activeItem.title.trim(), area: activeItem.area.trim(), taskUrl: activeItem.taskUrl.trim() }
-    onChange(current => newItem ? [...current, saved] : current.map(item => item.id === saved.id ? saved : item))
+    if (activeItem.areaId && !auditAreas.some(area => area.id === activeItem.areaId && area.projectId === projectId)) { setError('Виберіть Area поточного проєкту.'); return }
+    if (activeItem.type && !auditTypes.some(type => type.id === activeItem.type && type.projectId === projectId)) { setError('Виберіть Type поточного проєкту.'); return }
+    const saved = { ...activeItem, projectId, title: activeItem.title.trim(), areaId: activeItem.areaId.trim(), taskUrl: activeItem.taskUrl.trim() }
+    onChange(current => newItem ? [...current, saved] : current.map(item => item.projectId === projectId && item.id === saved.id ? saved : item))
     setDrafts(current => { const next = { ...current }; delete next[saved.id]; return next })
     setNewItem(null); setSelectedId(saved.id); setNotice('Зміни збережено.'); setError('')
   }
-  function deleteItem() { if (!deleting) return; onChange(current => current.filter(item => item.id !== deleting.id)); setDrafts(current => { const next = { ...current }; delete next[deleting.id]; return next }); if (selectedId === deleting.id) { setSelectedId(''); setPanelOpen(false) }; setDeleting(null) }
+  function deleteItem() { if (!deleting) return; onChange(current => current.filter(item => item.projectId !== projectId || item.id !== deleting.id)); setDrafts(current => { const next = { ...current }; delete next[deleting.id]; return next }); if (selectedId === deleting.id) { setSelectedId(''); setPanelOpen(false) }; setDeleting(null) }
 
   const dictionaries = {
     area: auditAreas.filter(value => value.projectId === projectId),
@@ -74,7 +77,7 @@ export function AuditPage({ areaInUse, evidenceUrls, projectId, items, onChange,
       return value.id
     },
     remove(kind: DictionaryKind, id: string) {
-      if ([...items, ...Object.values(drafts), ...(newItem ? [newItem] : [])].some(item => item[kind] === id)) return 'Значення використовується в зауваженнях Audit. Спочатку виберіть інше значення в цих зауваженнях.'
+      if ([...projectItems, ...Object.values(drafts), ...(newItem ? [newItem] : [])].some(item => item[kind === 'area' ? 'areaId' : 'type'] === id)) return 'Значення використовується в зауваженнях Audit. Спочатку виберіть інше значення в цих зауваженнях.'
       if (kind === 'area' && areaInUse?.(id)) return 'Area використовується в іншому розділі проєкту.'
       const update = kind === 'area' ? onAreasChange : onTypesChange
       update(current => current.filter(entry => entry.projectId !== projectId || entry.id !== id))

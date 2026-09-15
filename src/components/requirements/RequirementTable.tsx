@@ -2,7 +2,7 @@ import { MoreHorizontal, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu'
-import type { Requirement, RequirementsProjectState } from '@/types'
+import type { RequirementWithTestCases as Requirement, RequirementsViewState as RequirementsProjectState } from '@/types'
 import { coverageLabel, requirementStatuses } from './requirementOptions'
 
 export type RequirementFilters = { search: string; areaId: string; status: string; coverage: string }

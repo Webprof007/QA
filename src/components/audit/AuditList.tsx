@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { auditSeverities, auditStatuses } from '@/data/auditMockData'
-import type { AuditItem, AuditStatus, AuditType, Severity } from '@/types'
+import type { AuditItem, AuditStatus, AuditType, AuditSeverity } from '@/types'
 
 export type AuditSortKey = 'id' | 'area' | 'type' | 'severity' | 'status' | 'date'
-export type AuditFilters = { search: string; area: string; type: AuditType | ''; severity: Severity | ''; status: AuditStatus | ''; from: string; to: string }
+export type AuditFilters = { search: string; area: string; type: AuditType | ''; severity: AuditSeverity | ''; status: AuditStatus | ''; from: string; to: string }
 
 type Props = {
   items: AuditItem[]; selectedId: string; filtered: boolean; filters: AuditFilters; sort: { key: AuditSortKey; direction: 'asc' | 'desc' }
@@ -53,7 +53,7 @@ export function AuditList({ items, selectedId, filtered, filters, sort, onFilter
           <div className="audit-header-cell">Task</div><span />
         </div>
         {items.map(item => <div key={item.id} className={`audit-row audit-compact-row ${item.id === selectedId ? 'audit-selected' : ''}`} onClick={() => onSelect(item.id)} role="button" tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onSelect(item.id) }}>
-          <span className="test-id">{item.id}</span><span className="audit-title">{item.title}</span><span>{dictionary.area.find(value => value.id === item.area)?.name || '—'}</span><span>{options('type').find(option => option.value === item.type)?.label || '—'}</span><span className={`audit-severity-${item.severity}`}>{labels.severity.find(option => option.value === item.severity)?.label}</span><span>{labels.status.find(option => option.value === item.status)?.label}</span><time dateTime={item.discoveredAt}>{item.discoveredAt.split('-').reverse().join('.')}</time>{/^(https?):\/\//i.test(item.taskUrl) ? <a className="audit-task" href={item.taskUrl} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>↗</a> : <span className="muted">—</span>}<DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Дії із зауваженням ${item.id}`} onClick={event => event.stopPropagation()}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => onEdit(item)}>Змінити</DropdownMenuItem><DropdownMenuItem variant="destructive" onSelect={() => onDelete(item)}>Видалити</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <span className="test-id">{item.id}</span><span className="audit-title">{item.title}</span><span>{dictionary.area.find(value => value.id === item.areaId)?.name || '—'}</span><span>{options('type').find(option => option.value === item.type)?.label || '—'}</span><span className={`audit-severity-${item.severity}`}>{labels.severity.find(option => option.value === item.severity)?.label}</span><span>{labels.status.find(option => option.value === item.status)?.label}</span><time dateTime={item.discoveredAt}>{item.discoveredAt.split('-').reverse().join('.')}</time>{/^(https?):\/\//i.test(item.taskUrl) ? <a className="audit-task" href={item.taskUrl} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>↗</a> : <span className="muted">—</span>}<DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Дії із зауваженням ${item.id}`} onClick={event => event.stopPropagation()}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => onEdit(item)}>Змінити</DropdownMenuItem><DropdownMenuItem variant="destructive" onSelect={() => onDelete(item)}>Видалити</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>)}
       </div></div>
     {!items.length && <p className="empty-state muted">{filtered ? 'Немає зауважень із вибраними фільтрами.' : 'Зауважень поки немає. Додайте перше зауваження.'}</p>}

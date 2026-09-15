@@ -81,9 +81,12 @@ export function AppSidebar({
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">TESTING</p>
-          {navigationItem('Smoke')}
-          {navigationItem('Checklists')}
           {navigationItem('Test Cases')}
+          {navigationItem('Coverage')}
+          {navigationItem('Test Runs')}
+          {navigationItem('Defects')}
+          {navigationItem('Checklists')}
+          {navigationItem('Smoke')}
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">ANALYSIS</p>

@@ -1,3 +1,4 @@
+import { AccountBackButton } from '@/components/AccountBackButton'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,7 +40,7 @@ export function TestPlanPage({ projectId, plans, onSave }: { projectId: string; 
       </table>
       {!visiblePlans.length && <p className="muted">Плани тестування поки не створено.</p>}
     </div> : <form className="plan-document tc-form" onSubmit={save}>
-      <div><Button type="button" variant="ghost" onClick={() => { setSelectedId(''); setDraft(null); setError('') }}>← Test Plans</Button></div>
+      <AccountBackButton onClick={() => { setSelectedId(''); setDraft(null); setError('') }}>← Test Plans</AccountBackButton>
       <div className="tc-panel-actions">{draft ? <><Button type="submit">Save</Button><Button type="button" variant="outline" onClick={() => { setDraft(null); setError('') }}>Cancel</Button></> : <Button type="button" variant="outline" onClick={() => setDraft(structuredClone(active))}>Edit</Button>}</div>
       <div className="plan-metadata">{(['title', 'version', 'status'] as const).map(key => <div className="field" key={key}><label htmlFor={`plan-${key}`}>{key === 'title' ? 'Title' : key === 'version' ? 'Version' : 'Status'}</label>{draft ? key === 'status' ? <select id={`plan-${key}`} className="audit-select" value={draft.status} onChange={event => setDraft({ ...draft, status: event.target.value as TestPlan['status'] })}>{['Draft', 'Active', 'Completed'].map(status => <option key={status}>{status}</option>)}</select> : <Input id={`plan-${key}`} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <p>{active[key] || '—'}</p>}</div>)}</div>
       {sections.map(([key, label]) => <section className="tc-section" key={key}><h3><label htmlFor={`plan-${key}`}>{label}</label></h3>{draft ? <Textarea id={`plan-${key}`} rows={3} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <p>{active[key] || '—'}</p>}</section>)}

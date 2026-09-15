@@ -6,13 +6,13 @@ import { TestCasePanel } from '@/components/test-cases/TestCasePanel'
 import { priorities, statuses } from '@/components/test-cases/testCaseOptions'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import type { Requirement, TestCase, TestCasesProjectState } from '@/types'
+import type { RequirementWithTestCases as Requirement, TestCase, TestCasesProjectState } from '@/types'
 import '../App.css'
 import './AuditPage.css'
 import './TestCasesPage.css'
 
-type Props = { areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>> }
-export function TestCasesPage({ areaInUse, projectId, data, onChange, requirements }: Props) {
+type Props = { onRequirementsChange?: (testCaseId: string, ids: string[]) => void; areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>> }
+export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data, onChange, requirements }: Props) {
   const [filters, setFilters] = useState<CaseFilters>({ search: '', areaId: '', typeId: '', priority: '', status: '' })
   const [sort, setSort] = useState<CaseSort>({ key: 'code', direction: 'asc' })
   const [selectedId, setSelectedId] = useState('')
@@ -38,6 +38,8 @@ export function TestCasesPage({ areaInUse, projectId, data, onChange, requiremen
   }
   function save() {
     if (!draft) return
+    if (draft.areaId && !areas.some(area => area.id === draft.areaId)) { setError('Виберіть Area поточного проєкту.'); return }
+    if (draft.typeId && !types.some(type => type.id === draft.typeId)) { setError('Виберіть Type поточного проєкту.'); return }
     const code = draft.code.trim()
     if (!code || !draft.title.trim()) { setError('Enter a code and title.'); return }
     if (items.some(item => item.id !== draft.id && item.code.toLowerCase() === code.toLowerCase())) { setError('This code already exists in this project.'); return }
@@ -99,7 +101,7 @@ export function TestCasesPage({ areaInUse, projectId, data, onChange, requiremen
     <header className="page-heading"><h1>Test Cases</h1></header>
     <div className={`tc-layout ${active ? 'tc-with-panel' : ''}`}>
       <TestCaseTable items={visible} areas={areas} types={types} selectedId={selectedId} filters={filters} sort={sort} onFilters={setFilters} onSort={setSort} onOpen={item => open(item)} onEdit={item => open(item, true)} onDelete={setDeleting} onAdd={add} />
-      {active && <TestCasePanel requirements={requirements.filter(item => item.projectId === projectId && item.testCaseIds.includes(active.id))} key={active.id} item={active} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
+      {active && <TestCasePanel allRequirements={requirements} onRequirementsChange={onRequirementsChange ? ids => onRequirementsChange(active.id, ids) : undefined} requirements={requirements.filter(item => item.projectId === projectId && item.testCaseIds.includes(active.id))} key={active.id} item={active} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
     </div>
     <Dialog open={Boolean(deleting)} onOpenChange={value => { if (!value) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Delete {deleting?.code}?</DialogTitle><DialogDescription>This test case will be removed from the current project.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={remove}>Delete test case</Button></DialogFooter></DialogContent></Dialog>
   </main></DictionaryContext.Provider>

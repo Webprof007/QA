@@ -24,7 +24,7 @@ export function AuditMetadataFields({ item, onChange, prefix }: Props) {
     </div>
     <div className="audit-field-pair">
       <div className="field"><label id={`${prefix}-date-label`} htmlFor={`${prefix}-date`}>Date</label><Input id={`${prefix}-date`} type="date" required value={item.discoveredAt} onChange={event => onChange({ ...item, discoveredAt: event.target.value })} /></div>
-      <AuditDictionarySelect kind="area" id={`${prefix}-area`} value={item.area} onChange={area => onChange({ ...item, area })} />
+      <AuditDictionarySelect kind="area" id={`${prefix}-area`} value={item.areaId} onChange={areaId => onChange({ ...item, areaId })} />
     </div>
     <AuditDictionarySelect kind="type" id={`${prefix}-type`} value={item.type} onChange={type => onChange({ ...item, type })} />
     <div className="field"><label id={`${prefix}-task-label`} htmlFor={`${prefix}-task`}>Task URL</label><Input id={`${prefix}-task`} type="url" pattern="https?://.*" title="Посилання має починатися з http:// або https://" placeholder="https://…" value={item.taskUrl} onChange={event => onChange({ ...item, taskUrl: event.target.value })} /></div>

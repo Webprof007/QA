@@ -1,4 +1,4 @@
-import type { AuditDictionaryValue, AuditItem, AuditStatus, AuditType, Severity } from '@/types'
+import type { AuditDictionaryValue, AuditItem, AuditStatus, AuditType, AuditSeverity } from '@/types'
 
 export const auditStatuses: { value: AuditStatus; label: string }[] = [
   { value: 'open', label: 'Open' },
@@ -7,7 +7,7 @@ export const auditStatuses: { value: AuditStatus; label: string }[] = [
   { value: 'verified', label: 'Verified' },
   { value: 'wont-fix', label: "Won’t fix" },
 ]
-export const auditSeverities: { value: Severity; label: string }[] = [
+export const auditSeverities: { value: AuditSeverity; label: string }[] = [
   { value: 'critical', label: 'Critical' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
@@ -29,7 +29,7 @@ export const initialAuditByProject: Record<string, AuditItem[]> = {
   voicli: [
     {
       id: 'AUD-001', projectId: 'voicli',
-      title: 'Демо: непомітний фокус кнопки', area: 'Landing',
+      title: 'Демо: непомітний фокус кнопки', areaId: 'Landing',
       type: 'accessibility', severity: 'high', status: 'open',
       discoveredAt: '2026-09-10', location: 'Landing → основна CTA',
       description: 'Демонстраційний приклад: під час навігації клавіатурою фокус кнопки складно розрізнити.',
@@ -39,7 +39,7 @@ export const initialAuditByProject: Record<string, AuditItem[]> = {
     },
     {
       id: 'AUD-002', projectId: 'voicli',
-      title: 'Демо: неперекладений підпис', area: 'Settings',
+      title: 'Демо: неперекладений підпис', areaId: 'Settings',
       type: 'localization', severity: 'medium', status: 'in-progress',
       discoveredAt: '2026-09-11', location: 'Settings → мова інтерфейсу',
       description: 'Демонстраційний приклад: один підпис залишився іншою мовою.',
@@ -49,7 +49,7 @@ export const initialAuditByProject: Record<string, AuditItem[]> = {
     },
     {
       id: 'AUD-003', projectId: 'voicli',
-      title: 'Демо: текст виходить за межі', area: 'Pricing',
+      title: 'Демо: текст виходить за межі', areaId: 'Pricing',
       type: 'ui-ux', severity: 'low', status: 'fixed',
       discoveredAt: '2026-09-12', location: 'Pricing → картка тарифу',
       description: 'Демонстраційний приклад: довгий текст виходить за межі картки.',
@@ -59,7 +59,7 @@ export const initialAuditByProject: Record<string, AuditItem[]> = {
     },
     {
       id: 'AUD-004', projectId: 'voicli',
-      title: 'Демо: немає повідомлення про помилку', area: 'Registration',
+      title: 'Демо: немає повідомлення про помилку', areaId: 'Registration',
       type: 'bug', severity: 'high', status: 'open',
       discoveredAt: '2026-09-13', location: 'Registration → надсилання форми',
       description: 'Демонстраційний приклад: форма не пояснює причину невдалого надсилання.',
@@ -70,5 +70,4 @@ export const initialAuditByProject: Record<string, AuditItem[]> = {
   'qp-notes': [],
 }
 
-export const initialAuditAreas: AuditDictionaryValue[] = [...new Set(initialAuditByProject.voicli.map(item => item.area))].map(name => ({ id: name, projectId: 'voicli', name }))
 export const initialAuditTypes: AuditDictionaryValue[] = seedTypes.map(option => ({ id: option.value, projectId: 'voicli', name: option.label }))
