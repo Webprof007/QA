@@ -2,20 +2,22 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://api.smart-it.site
 
 export class ApiError extends Error {
   status: number
-  constructor(message: string, status = 0) {
+  errors?: Record<string, string>
+  constructor(message: string, status = 0, errors?: Record<string, string>) {
     super(message)
     this.status = status
+    this.errors = errors
   }
 }
 
-export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST'; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   let response: Response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method: options.method ?? 'GET',
       credentials: 'include',
       cache: 'no-store',
-      headers: options.method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: options.signal,
     })
@@ -25,7 +27,7 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   }
   const data = await response.json().catch(() => null)
   if (!response.ok || !data || data.success !== true) {
-    throw new ApiError(typeof data?.message === 'string' ? data.message : 'Не вдалося виконати запит. Спробуйте ще раз.', response.status)
+    throw new ApiError(typeof data?.message === 'string' ? data.message : 'Не вдалося виконати запит. Спробуйте ще раз.', response.status, data?.errors && typeof data.errors === 'object' ? data.errors : undefined)
   }
   return data as T
 }

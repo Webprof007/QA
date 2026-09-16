@@ -45,6 +45,7 @@ export function EntityLinkPicker({ testCases, selectedIds, onApply, onClose, kin
         <label className="req-picker-selected"><Checkbox checked={selectedOnly} onCheckedChange={checked => { setSelectedOnly(checked === true); setPage(0) }} />Selected only</label>
       </div>
       {(search || status || selectedOnly || Object.values(metadata).some(Boolean)) && <Button type="button" variant="ghost" size="sm" onClick={() => { setSearch(''); setStatus(''); setSelectedOnly(false); setMetadata({ area: '', priority: '', type: '' }); setPage(0) }}>Clear filters</Button>}
+      <div className="tc-panel-actions"><Button type="button" variant="outline" size="sm" onClick={() => setSelection(current => new Set([...current, ...filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map(item => item.id)]))}>Select all visible</Button><Button type="button" variant="ghost" size="sm" onClick={() => setSelection(new Set())}>Clear selection</Button></div>
       <div className="req-picker-results">
         <table className="tc-table" aria-label="Link choices">
           <colgroup><col style={{ width: 28 }} /><col /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} />{!isRequirements && <col style={{ width: '15%' }} />}<col style={{ width: '15%' }} /></colgroup>

@@ -1,21 +1,25 @@
+import { emptyProjectSetup, resolveProjectContext } from './projectSetup'
+import type { ProjectSetupState } from '@/types'
 import { createTestCaseSnapshot } from './testCaseSnapshot'
-import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestExecution, TestExecutionResult, TestPlan, TestRun, TestRunsState } from '@/types'
+import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestExecution, TestExecutionResult, TestPlan, TestSuite, TestRun, TestRunsState } from '@/types'
 export const executionResults: TestExecutionResult[] = ['Not Run', 'Pass', 'Fail', 'Blocked', 'Skipped']
-export type RunInput = Pick<TestRun, 'name' | 'testPlanId' | 'environment' | 'build' | 'browser' | 'deviceOrOs' | 'notes'> & { testCaseIds: string[] }
+export type RunInput = Pick<TestRun, 'name' | 'testPlanId' | 'environmentId' | 'buildId' | 'browser' | 'deviceOrOs' | 'notes'> & { testCaseIds: string[]; sourceTestSuiteId?: string }
 export type ExecutionInput = Pick<TestExecution, 'result' | 'actualResult' | 'comment' | 'evidenceNote'>
 export function runCounts(executions: Pick<TestExecution, 'result'>[]) {
   const counts = Object.fromEntries(executionResults.map(result => [result, executions.filter(item => item.result === result).length])) as Record<TestExecutionResult, number>
   return { counts, total: executions.length, done: executions.length - counts['Not Run'] }
 }
-export function createTestRun(projectId: string, input: RunInput, cases: TestCase[], plans: TestPlan[], areas: ProjectArea[], types: TestCaseDictionaryValue[]): TestRunsState {
+export function createTestRun(projectId: string, input: RunInput, cases: TestCase[], plans: TestPlan[], areas: ProjectArea[], types: TestCaseDictionaryValue[], suites: TestSuite[] = [], setup: ProjectSetupState = emptyProjectSetup): TestRunsState {
   const ids = [...new Set(input.testCaseIds)]
   const selected = ids.map(id => cases.find(item => item.id === id && item.projectId === projectId))
   if (!input.name.trim()) throw new Error('Введіть назву запуску.')
   if (!ids.length || selected.some(item => !item)) throw new Error('Виберіть Test Cases поточного проєкту.')
   const plan = plans.find(item => item.id === input.testPlanId && item.projectId === projectId)
   if (input.testPlanId && !plan) throw new Error('Виберіть Test Plan поточного проєкту.')
+  const sourceSuite = suites.find(item => item.id === input.sourceTestSuiteId && item.projectId === projectId)
+  if (input.sourceTestSuiteId && !sourceSuite) throw new Error('Виберіть Test Suite поточного проєкту.')
   const now = new Date().toISOString(), runId = crypto.randomUUID()
-  const run: TestRun = { id: runId, projectId, name: input.name.trim(), testPlanId: plan?.id ?? null, testPlanTitleSnapshot: plan?.title, environment: input.environment, build: input.build, browser: input.browser, deviceOrOs: input.deviceOrOs, notes: input.notes, status: 'Draft', startedAt: null, completedAt: null, createdAt: now, updatedAt: now }
+  const run: TestRun = { sourceTestSuiteId: sourceSuite?.id, sourceTestSuiteCodeSnapshot: sourceSuite?.code, sourceTestSuiteNameSnapshot: sourceSuite?.name, id: runId, projectId, name: input.name.trim(), testPlanId: plan?.id ?? null, testPlanTitleSnapshot: plan?.title, ...resolveProjectContext(setup, projectId, input), browser: input.browser, deviceOrOs: input.deviceOrOs, notes: input.notes, status: 'Draft', startedAt: null, completedAt: null, createdAt: now, updatedAt: now }
   const executions: TestExecution[] = selected.map(item => {
     const test = item!
     return { id: crypto.randomUUID(), projectId, runId, testCaseId: test.id, testCaseSnapshot: createTestCaseSnapshot(test, areas, types), result: 'Not Run', actualResult: '', comment: '', evidenceNote: '' }

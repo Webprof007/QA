@@ -2,22 +2,22 @@ import { AuditDictionarySelect } from './AuditDictionarySelect'
 import { Input } from '@/components/ui/input'
 import { RichTextEditor } from '@/components/rich-text/RichTextEditor'
 import { auditSeverities, auditStatuses } from '@/data/auditMockData'
-import type { AuditItem } from '@/types'
+import type { AuditFinding } from '@/types'
 
-type Props = { item: AuditItem; onChange: (item: AuditItem) => void; prefix: string }
+type Props = { item: AuditFinding; onChange: (item: AuditFinding) => void; prefix: string }
 
 export function AuditMetadataFields({ item, onChange, prefix }: Props) {
   return <>
     <div className="audit-field-pair">
       <div className="field">
         <label id={`${prefix}-severity-label`} htmlFor={`${prefix}-severity`}>Severity / Критичність</label>
-        <select id={`${prefix}-severity`} className="audit-select" value={item.severity} onChange={event => onChange({ ...item, severity: event.target.value as AuditItem['severity'] })}>
+        <select id={`${prefix}-severity`} className="audit-select" value={item.severity} onChange={event => onChange({ ...item, severity: event.target.value as AuditFinding['severity'] })}>
           {auditSeverities.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </div>
       <div className="field">
         <label id={`${prefix}-status-label`} htmlFor={`${prefix}-status`}>Status</label>
-        <select id={`${prefix}-status`} className="audit-select" value={item.status} onChange={event => onChange({ ...item, status: event.target.value as AuditItem['status'] })}>
+        <select id={`${prefix}-status`} className="audit-select" value={item.status} onChange={event => onChange({ ...item, status: event.target.value as AuditFinding['status'] })}>
           {auditStatuses.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </div>

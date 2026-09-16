@@ -26,7 +26,7 @@ describe('Domain ownership and project boundaries', () => {
   })
   it('execution writes cannot change records in another project even with colliding IDs', () => {
     const seed = createProjectAreaData(), data = seed.testCases.voicli
-    const state = createTestRun('voicli', { name: 'Run', testCaseIds: [data.items[0].id], environment: '', build: '', browser: '', deviceOrOs: '', notes: '' }, data.items, [], seed.areas, data.types)
+    const state = createTestRun('voicli', { name: 'Run', testCaseIds: [data.items[0].id], browser: '', deviceOrOs: '', notes: '' }, data.items, [], seed.areas, data.types)
     const foreignRun = { ...state.runs[0], projectId: 'other' }
     const foreignExecution = { ...state.executions[0], projectId: 'other' }
     const next = saveExecution({ runs: [...state.runs, foreignRun], executions: [...state.executions, foreignExecution] }, 'voicli', state.executions[0].id, { result: 'Fail', actualResult: 'Actual', comment: '', evidenceNote: '' }, 42)

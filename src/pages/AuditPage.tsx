@@ -1,97 +1,82 @@
-import type { AuditEvidenceUrls } from '@/lib/auditEvidenceUrls'
-import { DictionaryContext, type DictionaryKind } from '@/components/audit/dictionaryContext'
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { Plus } from 'lucide-react'
+import { useState } from 'react'
+import { AccountBackButton } from '@/components/AccountBackButton'
+import { AddEntityButton } from '@/components/AddEntityButton'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { AuditList, type AuditFilters, type AuditSortKey } from '@/components/audit/AuditList'
-import { AuditWorkspacePanel } from '@/components/audit/AuditWorkspacePanel'
-import type { AuditDictionaryValue, ProjectArea, AuditItem } from '@/types'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { AuditFindingsPage, type AuditFindingsProps } from './AuditFindingsPage'
+import type { Audit, AuditCheck, AuditState } from '@/types'
 import '../App.css'
 import './AuditPage.css'
 
-type Props = { areaInUse?: (id: string) => boolean; evidenceUrls: AuditEvidenceUrls; auditAreas: ProjectArea[]; auditTypes: AuditDictionaryValue[]; onAreasChange: Dispatch<SetStateAction<ProjectArea[]>>; onTypesChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; projectId: string; items: AuditItem[]; onChange: Dispatch<SetStateAction<AuditItem[]>> }
-const emptyFilters: AuditFilters = { search: '', area: '', type: '', severity: '', status: '', from: '', to: '' }
-
-export function AuditPage({ areaInUse, evidenceUrls, projectId, items, onChange, auditAreas, auditTypes, onAreasChange, onTypesChange }: Props) {
-  const [filters, setFilters] = useState(emptyFilters)
-  const [sort, setSort] = useState<{ key: AuditSortKey; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' })
-  const [selectedId, setSelectedId] = useState('')
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [drafts, setDrafts] = useState<Record<string, AuditItem>>({})
-  const [newItem, setNewItem] = useState<AuditItem | null>(null)
-  useEffect(() => evidenceUrls.retain([...Object.values(drafts), ...(newItem ? [newItem] : [])].flatMap(item => item.evidence.map(file => file.url))), [drafts, newItem, evidenceUrls])
-  const [deleting, setDeleting] = useState<AuditItem | null>(null)
-  const [notice, setNotice] = useState('')
+type Props = Omit<AuditFindingsProps, 'auditId' | 'readOnly' | 'items' | 'onDeleteItem'> & {
+  data: AuditState
+  onSaveAudit: (audit: Audit) => string | null
+  onTransition: (id: string, action: 'start' | 'complete') => string | null
+  onSaveCheck: (check: AuditCheck) => string | null
+  onDeleteFinding: (auditId: string, id: string) => string | null
+}
+const fields = [['title', 'Title / Назва'], ['objective', 'Objective / Мета'], ['scope', 'Scope / Обсяг'], ['startDate', 'Start date / Дата початку'], ['endDate', 'End date / Планове завершення'], ['notes', 'Notes / Нотатки'], ['limitations', 'Limitations / Обмеження']] as const
+export function AuditPage({ data, onSaveAudit, onTransition, onSaveCheck, onDeleteFinding, ...findingProps }: Props) {
+  const { projectId, auditTypes } = findingProps
+  const [selectedId, setSelectedId] = useState(() => data.findings.find(item => item.projectId === projectId && item.id === findingProps.initialFindingId)?.auditId ?? '')
+  const [draft, setDraft] = useState<Audit | null>(null)
+  const [check, setCheck] = useState<AuditCheck | null>(null)
   const [error, setError] = useState('')
-
-  const projectItems = items.filter(item => item.projectId === projectId)
-  const filteredItems = projectItems.filter(item => {
-    const search = filters.search.trim().toLowerCase()
-    return (!search || item.id.toLowerCase().includes(search) || item.title.toLowerCase().includes(search)) && (!filters.area || item.areaId === filters.area) && (!filters.type || item.type === filters.type) && (!filters.severity || item.severity === filters.severity) && (!filters.status || item.status === filters.status) && (!filters.from || item.discoveredAt >= filters.from) && (!filters.to || item.discoveredAt <= filters.to)
-  }).sort((a, b) => {
-    const sortValue = (item: AuditItem) => {
-      if (sort.key === 'date') return item.discoveredAt
-      if (sort.key === 'area' || sort.key === 'type') {
-        const values = sort.key === 'area' ? auditAreas : auditTypes
-        return values.find(value => value.projectId === projectId && value.id === item[sort.key === 'area' ? 'areaId' : 'type'])?.name ?? ''
-      }
-      return item[sort.key]
-    }
-    const valueA = sortValue(a)
-    const valueB = sortValue(b)
-    return String(valueA).localeCompare(String(valueB)) * (sort.direction === 'asc' ? 1 : -1)
-  })
-  const selected = newItem ?? projectItems.find(item => item.id === selectedId)
-  const activeItem = selected ? (drafts[selected.id] ?? selected) : undefined
-  const hasFilters = Object.values(filters).some(Boolean)
-
-  function selectItem(id: string) { setNewItem(null); setSelectedId(id); setPanelOpen(Boolean(id)); setNotice(''); setError('') }
-  function toggleSort(key: AuditSortKey) { setSort(current => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' })) }
-  function addItem() {
-    const number = Math.max(0, ...projectItems.map(item => Number(item.id.replace(/^AUD-/, '')) || 0)) + 1
-    const today = new Date(); const discoveredAt = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    setNewItem({ id: `AUD-${String(number).padStart(3, '0')}`, projectId, title: '', areaId: '', type: '', severity: 'medium', status: 'open', discoveredAt, location: '', description: '', expected: '', actual: '', evidence: [], comment: '', taskUrl: '' })
-    setSelectedId(''); setPanelOpen(true); setNotice(''); setError('')
+  const [confirming, setConfirming] = useState(false)
+  const audits = data.audits.filter(item => item.projectId === projectId)
+  const selected = audits.find(item => item.id === selectedId)
+  const checks = selected ? data.checks.filter(item => item.projectId === projectId && item.auditId === selected.id) : []
+  const readOnly = selected?.status === 'Completed'
+  const types = auditTypes.filter(item => item.projectId === projectId)
+  function create() {
+    setError('')
+    setDraft({ id: '', projectId, code: '', title: '', typeId: '', status: 'Draft', objective: '', scope: '', startDate: '', endDate: '', notes: '', limitations: '', createdAt: '', updatedAt: '' })
   }
-  function updateActive(item: AuditItem) { if (newItem) setNewItem(item); else setDrafts(current => ({ ...current, [item.id]: item })); setError(''); setNotice('') }
-  function saveActive() {
-    if (!activeItem) return
-    if (!activeItem.title.trim()) { setError('Введіть назву зауваження.'); return }
-    if (activeItem.areaId && !auditAreas.some(area => area.id === activeItem.areaId && area.projectId === projectId)) { setError('Виберіть Area поточного проєкту.'); return }
-    if (activeItem.type && !auditTypes.some(type => type.id === activeItem.type && type.projectId === projectId)) { setError('Виберіть Type поточного проєкту.'); return }
-    const saved = { ...activeItem, projectId, title: activeItem.title.trim(), areaId: activeItem.areaId.trim(), taskUrl: activeItem.taskUrl.trim() }
-    onChange(current => newItem ? [...current, saved] : current.map(item => item.projectId === projectId && item.id === saved.id ? saved : item))
-    setDrafts(current => { const next = { ...current }; delete next[saved.id]; return next })
-    setNewItem(null); setSelectedId(saved.id); setNotice('Зміни збережено.'); setError('')
+  function transition(action: 'start' | 'complete') {
+    if (!selected) return
+    const failure = onTransition(selected.id, action)
+    setError(failure ?? '')
+    if (!failure) { setConfirming(false); setCheck(null); setDraft(null) }
   }
-  function deleteItem() { if (!deleting) return; onChange(current => current.filter(item => item.projectId !== projectId || item.id !== deleting.id)); setDrafts(current => { const next = { ...current }; delete next[deleting.id]; return next }); if (selectedId === deleting.id) { setSelectedId(''); setPanelOpen(false) }; setDeleting(null) }
-
-  const dictionaries = {
-    area: auditAreas.filter(value => value.projectId === projectId),
-    type: auditTypes.filter(value => value.projectId === projectId),
-    save(kind: DictionaryKind, name: string, id?: string) {
-      const value = { id: id ?? crypto.randomUUID(), projectId, name }
-      const update = kind === 'area' ? onAreasChange : onTypesChange
-      update(current => id ? current.map(entry => entry.projectId === projectId && entry.id === id ? value : entry) : [...current, value])
-      return value.id
-    },
-    remove(kind: DictionaryKind, id: string) {
-      if ([...projectItems, ...Object.values(drafts), ...(newItem ? [newItem] : [])].some(item => item[kind === 'area' ? 'areaId' : 'type'] === id)) return 'Значення використовується в зауваженнях Audit. Спочатку виберіть інше значення в цих зауваженнях.'
-      if (kind === 'area' && areaInUse?.(id)) return 'Area використовується в іншому розділі проєкту.'
-      const update = kind === 'area' ? onAreasChange : onTypesChange
-      update(current => current.filter(entry => entry.projectId !== projectId || entry.id !== id))
-      setFilters(current => current[kind] === id ? { ...current, [kind]: '' } : current)
-      return ''
-    },
-  }
-
-  return <DictionaryContext.Provider value={dictionaries}><main className="smoke-app audit-page">
-    <header className="page-heading audit-page-heading"><h1>Audit</h1><Button variant="outline" size="sm" onClick={addItem}><Plus />Додати зауваження</Button></header>
-    <div className={`audit-layout ${panelOpen && activeItem ? 'audit-with-panel' : ''}`}>
-      <AuditList items={filteredItems} selectedId={selectedId} filtered={hasFilters} filters={filters} sort={sort} onFiltersChange={setFilters} onSort={toggleSort} onDateSort={direction => setSort({ key: 'date', direction })} onSelect={selectItem} onEdit={item => { setNewItem(null); setSelectedId(item.id); setPanelOpen(true) }} onDelete={setDeleting} />
-      {panelOpen && activeItem && <AuditWorkspacePanel createEvidenceUrl={evidenceUrls.create} item={activeItem} creating={Boolean(newItem)} notice={notice} error={error} onChange={updateActive} onSave={saveActive} onClose={() => { setPanelOpen(false); setNewItem(null) }} />}
-    </div>
-    <Dialog open={Boolean(deleting)} onOpenChange={open => { if (!open) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Видалити зауваження {deleting?.id}?</DialogTitle><DialogDescription>Зауваження буде видалено з Audit поточного проєкту.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Скасувати</Button><Button variant="destructive" onClick={deleteItem}>Видалити зауваження</Button></DialogFooter></DialogContent></Dialog>
-  </main></DictionaryContext.Provider>
+  return <main className="smoke-app audit-page">
+    <header className="page-heading"><h1>Audit</h1></header>
+    {error && <p role="alert" className="form-error">{error}</p>}
+    {!selected ? <>
+      <div className="tc-toolbar"><AddEntityButton entity="audit" onClick={create} /></div>
+      <div className="tc-list"><table className="tc-table" aria-label="Audits"><thead><tr>{['Code', 'Title', 'Type', 'Status', 'Started', 'Completed', 'Updated'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{audits.map(item => <tr key={item.id} onClick={() => { setSelectedId(item.id); setDraft(null); setError('') }}><td><button className="tc-open" onClick={() => { setSelectedId(item.id); setDraft(null); setError('') }}>{item.code}</button></td><td>{item.title}</td><td>{item.status === 'Completed' ? item.typeNameSnapshot || '—' : types.find(type => type.id === item.typeId)?.name || '—'}</td><td>{item.status}</td><td>{item.startedAt ? new Date(item.startedAt).toLocaleString() : '—'}</td><td>{item.completedAt ? new Date(item.completedAt).toLocaleString() : '—'}</td><td>{new Date(item.updatedAt).toLocaleString()}</td></tr>)}</tbody></table></div>
+      {!audits.length && <p className="muted">Перевірок ще немає. Додайте Audit.</p>}
+    </> : <>
+      <AccountBackButton onClick={() => { setSelectedId(''); setDraft(null); setCheck(null); setConfirming(false); setError('') }}>← Audits</AccountBackButton>
+      <div className="tc-toolbar"><h2>{selected.code} — {selected.title}</h2><span>{selected.status}</span>
+        {!readOnly && !draft && <Button variant="outline" size="sm" onClick={() => setDraft({ ...selected })}>Edit Audit</Button>}
+        {selected.status === 'Draft' && <Button disabled={!!draft || !!check} onClick={() => transition('start')}>Start Audit</Button>}
+        {selected.status === 'In Progress' && <Button disabled={!!draft || !!check} onClick={() => setConfirming(true)}>Complete Audit</Button>}
+      </div>
+      <dl className="run-metadata">{[
+        ['Type', readOnly ? selected.typeNameSnapshot : types.find(type => type.id === selected.typeId)?.name],
+        ['Objective / Мета', selected.objective], ['Scope / Обсяг', selected.scope],
+        ['Start date', selected.startDate], ['End date', selected.endDate],
+        ['Started', selected.startedAt], ['Completed', selected.completedAt],
+        ['Notes / Нотатки', selected.notes], ['Limitations / Обмеження', selected.limitations],
+      ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{value || '—'}</dd></div>)}</dl>
+      {readOnly && <p className="muted">Завершений Audit: історичні дані доступні лише для читання.</p>}
+      {confirming && <section role="alert"><p>Завершити Audit? Неперевірених критеріїв: {checks.filter(item => item.result === 'Not Checked').length}. Незбережені чернетки зауважень буде відкинуто. Після завершення зміни неможливі.</p><Button onClick={() => transition('complete')}>Підтвердити завершення Audit</Button><Button variant="ghost" onClick={() => setConfirming(false)}>Скасувати завершення</Button></section>}
+      <section aria-label="Audit checks"><div className="tc-toolbar"><h2>Checks / Критерії перевірки</h2>{!readOnly && <AddEntityButton entity="audit check" onClick={() => setCheck({ id: crypto.randomUUID(), projectId, auditId: selected.id, criterion: '', result: 'Not Checked', comment: '' })} />}</div>
+        <div className="tc-list"><table className="tc-table"><thead><tr><th>Criterion / Критерій</th><th>Result</th><th>Comment</th><th /></tr></thead><tbody>{checks.map(item => <tr key={item.id}><td>{item.criterion}</td><td>{item.result}</td><td>{item.comment || '—'}</td><td>{!readOnly && <Button size="sm" variant="ghost" onClick={() => setCheck({ ...item })} aria-label={'Edit check ' + item.criterion}>Edit</Button>}</td></tr>)}</tbody></table></div>
+        {check && !readOnly && <form className="tc-section" aria-label="Audit check editor" onSubmit={event => { event.preventDefault(); const failure = onSaveCheck(check); setError(failure ?? ''); if (!failure) setCheck(null) }}>
+          <label className="field">Criterion / Критерій<Textarea required value={check.criterion} onChange={event => setCheck({ ...check, criterion: event.target.value })} /></label>
+          <label className="field">Result<select className="audit-select" value={check.result} onChange={event => setCheck({ ...check, result: event.target.value as AuditCheck['result'] })}>{['Not Checked', 'Pass', 'Fail', 'N/A'].map(value => <option key={value}>{value}</option>)}</select></label>
+          <label className="field">Comment<Textarea value={check.comment} onChange={event => setCheck({ ...check, comment: event.target.value })} /></label>
+          <Button type="submit">Save Check</Button><Button type="button" variant="ghost" onClick={() => setCheck(null)}>Cancel Check</Button>
+        </form>}
+      </section>
+      <AuditFindingsPage {...findingProps} typeInUse={id => data.audits.some(item => item.projectId === projectId && item.typeId === id)} key={selected.id + selected.status} auditId={selected.id} readOnly={readOnly} items={data.findings} onDeleteItem={id => onDeleteFinding(selected.id, id)} />
+    </>}
+    {draft && <aside className="audit-workspace audit-session-editor" aria-label="Audit editor"><h2>{draft.id ? 'Edit Audit' : 'New Audit'}</h2><form className="audit-workspace-form" onSubmit={event => { event.preventDefault(); const failure = onSaveAudit(draft); setError(failure ?? ''); if (!failure) setDraft(null) }}>
+      {fields.map(([key, label]) => <label key={key} className="field">{label}{key === 'title' || key === 'startDate' || key === 'endDate' ? <Input required={key === 'title'} type={key === 'title' ? 'text' : 'date'} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <Textarea value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} />}</label>)}
+      <label className="field">Audit type<select className="audit-select" value={draft.typeId} onChange={event => setDraft({ ...draft, typeId: event.target.value })}><option value="">—</option>{types.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
+      <Button type="submit">Save Audit</Button><Button type="button" variant="ghost" onClick={() => setDraft(null)}>Cancel Audit</Button>
+    </form></aside>}
+  </main>
 }

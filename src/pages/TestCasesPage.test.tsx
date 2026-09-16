@@ -9,7 +9,7 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 const change = (name: string, value: string) => setFieldValue(screen.getByLabelText(name), value)
 const panel = () => screen.getByRole('complementary', { name: 'Test case panel' })
 const caseRows = () => within(screen.getByRole('table')).queryAllByRole('row').slice(1)
-const start = async () => { await renderAuthenticatedApp(); click('Test Cases') }
+const start = async () => { await renderAuthenticatedApp(); click('Test Cases / Тест-кейси') }
 const editField = (name: string, value: string) => setFieldValue(within(panel()).getByLabelText(name), value)
 async function menu(trigger: string, action: string, role: 'menuitem' | 'menuitemcheckbox' | 'menuitemradio' = 'menuitem') {
   fireEvent.keyDown(screen.getByRole('button', { name: trigger }), { key: 'Enter' })
@@ -139,13 +139,13 @@ describe('Project Test Cases', () => {
     expect(screen.queryByText('QP scenario')).toBeNull()
     await project('QP Notes')
     expect(caseRows()).toHaveLength(1)
-    click('Audit')
-    click('Test Cases')
+    click('Audit / Аудит')
+    click('Test Cases / Тест-кейси')
     expect(caseRows()[0].textContent).toContain('QP scenario')
     await menu('Project: QP Notes', 'Додати проєкт')
     change('Назва проєкту', 'New case project')
     click('Створити проєкт')
-    click('Test Cases')
+    click('Test Cases / Тест-кейси')
     expect(caseRows()).toHaveLength(0)
   })
 

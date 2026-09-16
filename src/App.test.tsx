@@ -9,9 +9,33 @@ async function menu(trigger: string, name: string) { fireEvent.keyDown(screen.ge
 it('navigates through QA sections with a single authenticated account', async () => {
   await renderAuthenticatedApp()
   const nav = within(screen.getByRole('navigation', { name: 'Розділи застосунку' }))
-  const pages = ['Requirements', 'Test Plan', 'Test Cases', 'Coverage', 'Test Runs', 'Defects', 'Checklists', 'Smoke', 'Audit']
-  expect(nav.getAllByRole('button').map(button => button.textContent)).toEqual(pages)
-  for (const name of pages) { fireEvent.click(nav.getByRole('button', { name })); expect(screen.getByRole('heading', { level: 1, name })).toBeTruthy(); expect(nav.getByRole('button', { name }).getAttribute('aria-current')).toBe('page') }
+  const groups = ['PLANNING', 'TEST DESIGN', 'EXECUTION', 'ANALYSIS', 'PROJECT']
+  expect([...screen.getByRole('navigation').querySelectorAll('.sidebar-group-label')].map(label => label.textContent)).toEqual(groups)
+  const pages = [
+    ['Requirements / Вимоги', 'Requirements'],
+    ['Test Plan / План тестування', 'Test Plan'],
+    ['Test Cases / Тест-кейси', 'Test Cases'],
+    ['Test Suites / Набори тестів', 'Test Suites / Набори тестів'],
+    ['Checklists / Чеклісти', 'Checklists'],
+    ['Smoke / Смоук-тестування', 'Smoke'],
+    ['Coverage / Покриття', 'Coverage'],
+    ['Test Runs / Запуски тестів', 'Test Runs'],
+    ['Defects / Дефекти', 'Defects'],
+    ['Audit / Аудит', 'Audit'],
+    ['Settings / Налаштування', 'Settings / Налаштування'],
+  ]
+  expect(nav.getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(pages.map(([label]) => label))
+  expect([...screen.getByRole('navigation').querySelectorAll('.sidebar-group')].map(group => group.querySelectorAll('button').length)).toEqual([2, 5, 2, 1, 1])
+  for (const [name, heading] of pages) {
+    const button = nav.getByRole('button', { name })
+    const [label, sublabel] = name.split(' / ')
+    expect(button.querySelector('.sidebar-item-label')?.textContent).toBe(label)
+    expect(button.querySelector('.sidebar-item-sublabel')?.textContent).toBe(sublabel)
+    fireEvent.click(button)
+    expect(screen.getByRole('heading', { level: 1, name: heading })).toBeTruthy()
+    expect(nav.getByRole('button', { name }).getAttribute('aria-current')).toBe('page')
+    expect(nav.getAllByRole('button').filter(button => button.getAttribute('aria-current') === 'page')).toHaveLength(1)
+  }
   expect(nav.queryByRole('button', { name: 'Users' })).toBeNull(); expect(screen.queryByRole('button', { name: /^Current User:/ })).toBeNull()
 })
 it('validates project names, creates isolated empty projects and preserves other project data', async () => {
@@ -21,7 +45,7 @@ it('validates project names, creates isolated empty projects and preserves other
   change('Назва проєкту', 'New Project'); click('Створити проєкт')
   expect(screen.getByRole('button', { name: 'Project: New Project' })).toBeTruthy()
   expect(screen.getByText('Smoke suites поки немає. Створіть перший набір.')).toBeTruthy()
-  click('New Smoke Suite'); change('Name', 'New project suite'); click('Save Suite')
+  click('+ Add smoke suite'); change('Name', 'New project suite'); click('Save Suite')
   await menu('Project: New Project', 'Видалити поточний проєкт'); click('Скасувати')
   expect(screen.getByRole('heading', { name: 'New project suite' })).toBeTruthy()
   await menu('Project: New Project', 'Видалити поточний проєкт'); click('Видалити проєкт')

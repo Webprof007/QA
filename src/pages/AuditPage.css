@@ -62,14 +62,4 @@
 .audit-dictionary-row > button:first-child { justify-content: start; overflow: hidden; text-overflow: ellipsis; }
 .audit-dictionary-trigger { width: 100%; justify-content: start; overflow: hidden; }
 
-.audit-evidence { min-width: 0; }
-.audit-evidence h3 { font-size: 13px; font-weight: 500; }
-.audit-evidence-drop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px; font-size: 12px; }
-.audit-evidence-list { display: grid; gap: 8px; max-height: 280px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
-.audit-evidence-list li { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 1fr) 32px; align-items: center; gap: 8px; }
-.audit-evidence-name { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
-.audit-evidence-list video { width: 100%; max-height: 110px; border-radius: 4px; }
-.audit-evidence-thumbnail { justify-self: start; cursor: zoom-in; border-radius: 4px; }
-.audit-evidence-thumbnail img { width: 80px; height: 64px; object-fit: cover; border-radius: 4px; }
-.audit-evidence-preview { max-width: min(900px, calc(100vw - 32px)); overflow-wrap: anywhere; }
-.audit-evidence-preview img { width: 100%; max-height: 70dvh; object-fit: contain; }
+.audit-session-editor { position: fixed; top: 70px; right: 16px; bottom: 16px; width: min(520px, calc(100vw - 32px)); overflow-y: auto; z-index: 40; background: var(--background); padding: 20px; border: 1px solid var(--border); }

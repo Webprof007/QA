@@ -24,7 +24,7 @@ async function project(name: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name }))
 }
-const start = async () => { await renderAuthenticatedApp(); navigate('Coverage') }
+const start = async () => { await renderAuthenticatedApp(); navigate('Coverage / Покриття') }
 
 describe('Coverage and bidirectional link management', () => {
   it('shows design coverage, filters/searches and links an uncovered requirement with staged Save/Cancel', async () => {
@@ -64,13 +64,13 @@ describe('Coverage and bidirectional link management', () => {
 
   it('edits links from both definition views using the same state, allowing many-to-many and cancel', async () => {
     await start()
-    navigate('Requirements')
+    navigate('Requirements / Вимоги')
     click('Open REQ-NAV-001')
     expect(screen.getByRole('heading', { name: 'Test Coverage' })).toBeTruthy()
     click('Link Test Cases')
     check('TC-004 Navigation link')
     click('Apply selection')
-    navigate('Test Cases')
+    navigate('Test Cases / Тест-кейси')
     click('Open TC-004')
     expect(screen.getByRole('region', { name: 'Requirements' }).textContent).toContain('REQ-NAV-001')
     click('Manage Requirements')
@@ -87,14 +87,14 @@ describe('Coverage and bidirectional link management', () => {
     check('REQ-NAV-001 User can navigate between pages')
     click('Apply selection')
     expect(within(screen.getByRole('region', { name: 'Requirements' })).getAllByRole('listitem')).toHaveLength(2)
-    navigate('Coverage')
+    navigate('Coverage / Покриття')
     expect(row('REQ-NAV-001').textContent).toContain('Uncovered')
     expect(row('REQ-AUTH-001').textContent).toContain('3Covered')
-    navigate('Requirements')
+    navigate('Requirements / Вимоги')
     click('Open REQ-AUTH-001')
     expect(screen.getByRole('region', { name: 'Linked Test Cases' }).textContent).toContain('TC-004')
     click('Unlink TC-004')
-    navigate('Test Cases')
+    navigate('Test Cases / Тест-кейси')
     click('Open TC-004')
     expect(within(screen.getByRole('region', { name: 'Requirements' })).getAllByRole('listitem')).toHaveLength(1)
   })
@@ -120,12 +120,12 @@ describe('Coverage and bidirectional link management', () => {
 
   it('combines Priority, Area, Status, Coverage and Search in the table headers', async () => {
     await start()
-    navigate('Requirements')
+    navigate('Requirements / Вимоги')
     click('Open REQ-AUTH-001')
     click('Edit requirement')
     change('Priority', 'high')
     click('Save requirement')
-    navigate('Coverage')
+    navigate('Coverage / Покриття')
     await filter('Area', 'Auth')
     await filter('Priority', 'High')
     await filter('Status', 'Approved')
@@ -144,17 +144,17 @@ describe('Coverage and bidirectional link management', () => {
     await project('QP Notes')
     expect(rows()).toHaveLength(0)
     expect(summary()).toContain('Coverage: 0%')
-    navigate('Requirements'); click('+ Add requirement')
+    navigate('Requirements / Вимоги'); click('+ Add requirement')
     change('Title', 'QP requirement'); click('Save requirement')
     click('Link Test Cases')
     expect(screen.queryByRole('checkbox', { name: 'TC-001 Login valid user' })).toBeNull()
     click('Cancel')
-    navigate('Test Cases'); click('+ Add test case')
+    navigate('Test Cases / Тест-кейси'); click('+ Add test case')
     change('Title', 'QP test'); click('Save test case')
     click('Manage Requirements')
     expect(screen.queryByRole('checkbox', { name: 'REQ-AUTH-001 User can log in' })).toBeNull()
     check('REQ-001 QP requirement'); click('Apply selection')
-    navigate('Coverage')
+    navigate('Coverage / Покриття')
     expect(rows()).toHaveLength(1)
     expect(summary()).toContain('Coverage: 100%')
     click('Open REQ-001'); click('Link Test Cases')

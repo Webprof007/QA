@@ -2,6 +2,10 @@ export type Project = {
   id: string
   name: string
   userIds: number[]
+  description?: string
+  createdByUserId?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type SmokeSuite = {
@@ -12,9 +16,9 @@ export type SmokeSuiteTestCaseLink = { projectId: string; suiteId: string; testC
 export type SmokePrerequisite = { id: string; projectId: string; suiteId: string; text: string; order: number }
 export type SmokeRunStatus = 'Draft' | 'In Progress' | 'Completed'
 export type SmokeExecutionResult = 'Not Run' | 'Pass' | 'Fail' | 'Blocked' | 'Skipped'
-export type SmokeRun = {
+export type SmokeRun = ProjectContext & {
   id: string; projectId: string; suiteId: string; suiteCodeSnapshot: string; suiteNameSnapshot: string
-  environment: string; build: string; browser: string; deviceOrOs: string; notes: string
+  browser: string; deviceOrOs: string; notes: string
   status: SmokeRunStatus; startedAt?: string; completedAt?: string; createdByUserId?: number
   createdAt: string; updatedAt: string
 }
@@ -39,38 +43,38 @@ export type Page =
   | 'Smoke'
   | 'Checklists'
   | 'Test Cases'
+  | 'Test Suites'
+  | 'Settings'
   | 'Test Runs'
   | 'Defects'
   | 'Coverage'
 
-export type AuditStatus = 'open' | 'in-progress' | 'fixed' | 'verified' | 'wont-fix'
+export type AuditFindingStatus = 'open' | 'in-progress' | 'fixed' | 'verified' | 'wont-fix'
 export type AuditSeverity = 'critical' | 'high' | 'medium' | 'low'
 export type AuditType = string
 
 export type AuditDictionaryValue = { id: string; projectId: string; name: string }
 
-export type AuditEvidence = {
+export type AuditFinding = {
   id: string
-  type: 'image' | 'video'
-  name: string
-  url: string
-  note?: string
-}
-
-export type AuditItem = {
-  id: string
+  code: string
+  auditId: string
+  createdAt: string
+  updatedAt: string
+  createdByUserId?: number
+  areaNameSnapshot?: string
+  typeNameSnapshot?: string
   projectId: string
   title: string
   areaId: string
   type: AuditType
   severity: AuditSeverity
-  status: AuditStatus
+  status: AuditFindingStatus
   discoveredAt: string
   location: string
   description: string
   expected: string
   actual: string
-  evidence: AuditEvidence[]
   evidenceNote?: string
   comment: string
   taskUrl: string
@@ -163,10 +167,11 @@ export type TestRunStatus = 'Draft' | 'In Progress' | 'Completed'
 export type TestExecutionResult = 'Not Run' | 'Pass' | 'Fail' | 'Blocked' | 'Skipped'
 // Reuse the definition's structured steps and conditions, freezing dictionary labels too.
 export type TestCaseSnapshot = Omit<TestCase, 'projectId' | 'createdAt' | 'updatedAt'> & { areaName: string; typeName: string }
-export type TestRun = {
+export type TestRun = ProjectContext & {
+  sourceTestSuiteId?: string; sourceTestSuiteCodeSnapshot?: string; sourceTestSuiteNameSnapshot?: string
   id: string; projectId: string; name: string; testPlanId?: string | null
   testPlanTitleSnapshot?: string
-  environment: string; build: string; browser: string; deviceOrOs: string
+  browser: string; deviceOrOs: string
   status: TestRunStatus; startedAt: string | null; completedAt: string | null
   notes: string; createdAt: string; updatedAt: string
 }
@@ -181,19 +186,73 @@ export type TestRunsState = { runs: TestRun[]; executions: TestExecution[] }
 export type DefectSeverity = 'Blocker' | 'Critical' | 'Major' | 'Minor' | 'Trivial'
 export type DefectPriority = 'Highest' | 'High' | 'Medium' | 'Low'
 export type DefectStatus = 'New' | 'Open' | 'In Progress' | 'Ready for Retest' | 'Closed' | 'Rejected' | 'Duplicate'
-export type Defect = {
+export type Defect = ProjectContext & {
   id: string; projectId: string; code: string; title: string; description: string
   stepsToReproduce: string; expectedResult: string; actualResult: string
   severity: DefectSeverity; priority: DefectPriority; status: DefectStatus; areaId?: string
-  environment: string; build: string; browser: string; deviceOrOs: string; evidenceNote: string
-  sourceExecutionId?: string; sourceTestCaseId?: string; externalTaskUrl?: string
+  browser: string; deviceOrOs: string; evidenceNote: string
+  source?: DefectOrigin; sourceTestCaseId?: string; externalTaskUrl?: string
   createdByUserId?: number; createdAt: string; updatedAt: string
 }
 // Many-to-many links live outside historical execution records. Source identifies origin only.
-export type ExecutionDefectLink = { projectId: string; executionId: string; defectId: string }
-export type DefectsState = { items: Defect[]; links: ExecutionDefectLink[] }
+export type DefectSourceType = 'testExecution' | 'smokeExecution' | 'auditFinding'
+export type DefectSourceRef = { type: DefectSourceType; id: string }
+export type DefectOrigin =
+  | { type: 'testExecution' | 'smokeExecution'; id: string; runId: string }
+  | { type: 'auditFinding'; id: string; auditId: string }
+export type DefectSourceLink = { projectId: string; sourceType: DefectSourceType; sourceId: string; defectId: string }
+export type DefectsState = { items: Defect[]; links: DefectSourceLink[] }
 
 export type RequirementTestCaseLink = { projectId: string; requirementId: string; testCaseId: string }
 // Derived view/editor draft only. Never stored alongside the relation state.
 export type RequirementWithTestCases = Requirement & { testCaseIds: string[] }
 export type RequirementsViewState = Omit<RequirementsProjectState, 'items'> & { items: RequirementWithTestCases[] }
+
+export type TestSuite = { id: string; projectId: string; code: string; name: string; description: string; createdAt: string; updatedAt: string }
+export type TestSuiteTestCaseLink = { projectId: string; suiteId: string; testCaseId: string; order: number }
+export type TestSuitesState = { suites: TestSuite[]; links: TestSuiteTestCaseLink[] }
+
+export type Environment = { id: string; projectId: string; name: string; baseUrl?: string; description?: string; isActive: boolean; createdAt: string; updatedAt: string }
+export type ReleaseStatus = 'Planning' | 'Active' | 'Released' | 'Archived'
+export type Release = { id: string; projectId: string; name: string; description?: string; status: ReleaseStatus; startDate?: string; releaseDate?: string; createdAt: string; updatedAt: string }
+export type Build = { id: string; projectId: string; version: string; releaseId?: string; description?: string; createdAt: string; updatedAt: string }
+export type ProjectSetupState = { environments: Environment[]; releases: Release[]; builds: Build[] }
+// Shared context shape only; TestRun, SmokeRun and Defect retain separate ownership/lifecycles.
+export type ProjectContext = { environmentId?: string; environmentNameSnapshot?: string; buildId?: string; buildVersionSnapshot?: string }
+
+export type DefectRetestResult = 'Pass' | 'Fail' | 'Blocked'
+export type DefectRetest = ProjectContext & {
+  id: string; projectId: string; defectId: string
+  sourceTestCaseId?: string; sourceExecutionId?: string
+  testCaseSnapshot?: TestCaseSnapshot
+  // Frozen fallback for manual defects or unavailable test definitions/history.
+  defectContextSnapshot?: Pick<Defect, 'title' | 'stepsToReproduce' | 'expectedResult' | 'actualResult'>
+  result: DefectRetestResult; actualResult: string; comment: string; evidenceNote: string
+  executedByUserId?: number; executedAt: string; createdAt: string
+}
+
+export type EvidenceOwnerType = 'testExecution' | 'smokeExecution' | 'defect' | 'defectRetest' | 'auditFinding'
+export type EvidenceOwner = { projectId: string; ownerType: EvidenceOwnerType; ownerId: string }
+export type EvidenceItem = EvidenceOwner & {
+  id: string; kind: 'file' | 'link'; name: string; mimeType?: string; sizeBytes?: number
+  url: string; createdByUserId?: number; createdAt: string
+}
+// Unsaved UI metadata only. File/Blob objects are never stored in domain state.
+export type EvidenceDraft = Omit<EvidenceItem, keyof EvidenceOwner>
+
+
+export type AuditStatus = 'Draft' | 'In Progress' | 'Completed'
+export type Audit = {
+  id: string; code: string; projectId: string; title: string; typeId: string
+  typeNameSnapshot?: string
+  status: AuditStatus; objective: string; scope: string
+  startDate: string; endDate: string; startedAt?: string; completedAt?: string
+  notes: string; limitations: string
+  createdByUserId?: number; createdAt: string; updatedAt: string
+}
+export type AuditCheckResult = 'Not Checked' | 'Pass' | 'Fail' | 'N/A'
+export type AuditCheck = {
+  id: string; projectId: string; auditId: string
+  criterion: string; result: AuditCheckResult; comment: string
+}
+export type AuditState = { audits: Audit[]; checks: AuditCheck[]; findings: AuditFinding[] }

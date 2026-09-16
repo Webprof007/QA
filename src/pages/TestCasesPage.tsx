@@ -5,14 +5,16 @@ import { TestCaseTable, type CaseFilters, type CaseSort } from '@/components/tes
 import { TestCasePanel } from '@/components/test-cases/TestCasePanel'
 import { priorities, statuses } from '@/components/test-cases/testCaseOptions'
 import { Button } from '@/components/ui/button'
+import { ImportExportActions } from '@/components/import-export/ImportExportActions'
+import { exportRows, validateTestCases } from '@/lib/importExport'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import type { RequirementWithTestCases as Requirement, TestCase, TestCasesProjectState } from '@/types'
 import '../App.css'
 import './AuditPage.css'
 import './TestCasesPage.css'
 
-type Props = { onRequirementsChange?: (testCaseId: string, ids: string[]) => void; areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>> }
-export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data, onChange, requirements }: Props) {
+type Props = { onRequirementsChange?: (testCaseId: string, ids: string[]) => void; areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string>; onTypeSave?: (name: string, id?: string) => Promise<string>; onTypeRemove?: (id: string) => Promise<string> }
+export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data, onChange, requirements, onAreaSave, onAreaRemove, onTypeSave, onTypeRemove }: Props) {
   const [filters, setFilters] = useState<CaseFilters>({ search: '', areaId: '', typeId: '', priority: '', status: '' })
   const [sort, setSort] = useState<CaseSort>({ key: 'code', direction: 'asc' })
   const [selectedId, setSelectedId] = useState('')
@@ -62,16 +64,20 @@ export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data
   }
   const dictionary = {
     area: areas, type: types,
-    save(kind: DictionaryKind, name: string, id?: string) {
+    async save(kind: DictionaryKind, name: string, id?: string) {
+      const remote = kind === 'area' ? onAreaSave : onTypeSave
+      if (remote) return remote(name, id)
       const key = kind === 'area' ? 'areas' : 'types'
       const value = { id: id ?? crypto.randomUUID(), projectId, name }
       onChange(current => ({ ...current, [key]: id ? current[key].map(entry => entry.id === id && entry.projectId === projectId ? value : entry) : [...current[key], value] }))
       return value.id
     },
-    remove(kind: DictionaryKind, id: string) {
+    async remove(kind: DictionaryKind, id: string) {
       const field = kind === 'area' ? 'areaId' : 'typeId'
       if ([...items, ...(draft ? [draft] : [])].some(item => item[field] === id)) return 'This value is used by a test case. Choose another value before deleting it.'
       if (kind === 'area' && areaInUse?.(id)) return 'Area використовується в іншому розділі проєкту.'
+      const remote = kind === 'area' ? onAreaRemove : onTypeRemove
+      if (remote) return remote(id)
       const key = kind === 'area' ? 'areas' : 'types'
       onChange(current => ({ ...current, [key]: current[key].filter(value => value.id !== id || value.projectId !== projectId) }))
       setFilters(current => current[field] === id ? { ...current, [field]: '' } : current)
@@ -100,7 +106,8 @@ export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data
   return <DictionaryContext.Provider value={dictionary}><main className="smoke-app tc-page">
     <header className="page-heading"><h1>Test Cases</h1></header>
     <div className={`tc-layout ${active ? 'tc-with-panel' : ''}`}>
-      <TestCaseTable items={visible} areas={areas} types={types} selectedId={selectedId} filters={filters} sort={sort} onFilters={setFilters} onSort={setSort} onOpen={item => open(item)} onEdit={item => open(item, true)} onDelete={setDeleting} onAdd={add} />
+      <TestCaseTable items={visible} areas={areas} types={types} selectedId={selectedId} filters={filters} sort={sort} onFilters={setFilters} onSort={setSort} onOpen={item => open(item)} onEdit={item => open(item, true)} onDelete={setDeleting} onAdd={add}
+        importExportActions={<ImportExportActions kind="testCases" validate={(rows, mapping) => validateTestCases(rows, mapping, { projectId, areas, types, existing: items })} onImport={imported => onChange(current => ({ ...current, items: [...current.items, ...imported] }))} exportRows={exportRows('testCases', { testCases: items, areas, types })} />} />
       {active && <TestCasePanel allRequirements={requirements} onRequirementsChange={onRequirementsChange ? ids => onRequirementsChange(active.id, ids) : undefined} requirements={requirements.filter(item => item.projectId === projectId && item.testCaseIds.includes(active.id))} key={active.id} item={active} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
     </div>
     <Dialog open={Boolean(deleting)} onOpenChange={value => { if (!value) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Delete {deleting?.code}?</DialogTitle><DialogDescription>This test case will be removed from the current project.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={remove}>Delete test case</Button></DialogFooter></DialogContent></Dialog>

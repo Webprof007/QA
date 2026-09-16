@@ -1,9 +1,11 @@
+import { AddEntityButton } from '@/components/AddEntityButton'
 import { ArrowDown, ArrowUp, SlidersHorizontal, MoreHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import type { TestCase, TestCaseDictionaryValue } from '@/types'
 import { priorities, statuses } from './testCaseOptions'
+import type { ReactNode } from 'react'
 
 export type CaseFilters = { search: string; areaId: string; typeId: string; priority: string; status: string }
 export type CaseSort = { key: 'code' | 'title' | 'areaId' | 'typeId' | 'priority' | 'status'; direction: 'asc' | 'desc' }
@@ -12,9 +14,9 @@ type Props = {
   selectedId?: string; filters: CaseFilters; sort: CaseSort
   onFilters: (filters: CaseFilters) => void; onSort: (sort: CaseSort) => void
   onOpen: (item: TestCase) => void; onEdit: (item: TestCase) => void; onDelete: (item: TestCase) => void
-  onAdd: () => void
+  onAdd: () => void; importExportActions?: ReactNode
 }
-export function TestCaseTable({ items, areas, types, selectedId, filters, sort, onFilters, onSort, onOpen, onEdit, onDelete, onAdd }: Props) {
+export function TestCaseTable({ items, areas, types, selectedId, filters, sort, onFilters, onSort, onOpen, onEdit, onDelete, onAdd, importExportActions }: Props) {
   const filtered = Object.values(filters).some(Boolean)
   const options = {
     areaId: areas.map(value => ({ value: value.id, label: value.name })),
@@ -36,7 +38,8 @@ export function TestCaseTable({ items, areas, types, selectedId, filters, sort, 
     <div className="tc-toolbar">
       <Input aria-label="Search by ID or title" placeholder="Search by ID or title..." value={filters.search} onChange={event => onFilters({ ...filters, search: event.target.value })} />
       {filtered && <Button variant="ghost" size="sm" onClick={() => onFilters({ search: '', areaId: '', typeId: '', priority: '', status: '' })}>Clear filters</Button>}
-      <Button variant="outline" size="sm" className="tc-add" onClick={onAdd}>+ Add test case</Button>
+      {importExportActions}
+      <AddEntityButton entity="test case" onClick={onAdd} />
     </div>
     <table className="tc-table">
       <colgroup><col className="tc-code-column" /><col /><col className="tc-meta-column" /><col className="tc-meta-column" /><col className="tc-meta-column" /><col className="tc-meta-column" /><col className="tc-actions-column" /></colgroup>

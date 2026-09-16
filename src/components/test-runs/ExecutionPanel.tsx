@@ -9,9 +9,9 @@ export type ExecutionView = { id: string; testCaseSnapshot: TestCaseSnapshot; re
 export type ExecutionPanelProps = {
   execution: ExecutionView; draft: ExecutionInput | null; readOnly: boolean; onChange: (input: ExecutionInput) => void
   onSave: () => void; onCancel: () => void; onClose: () => void; onPrevious: () => void; onNext: () => void; first: boolean; last: boolean
-  footer?: ReactNode
+  footer?: ReactNode; evidence?: ReactNode
 }
-export function ExecutionPanel({ execution, draft, readOnly, onChange, onSave, onCancel, onClose, onPrevious, onNext, first, last, footer }: ExecutionPanelProps) {
+export function ExecutionPanel({ execution, draft, readOnly, onChange, onSave, onCancel, onClose, onPrevious, onNext, first, last, footer, evidence }: ExecutionPanelProps) {
   const snapshot = execution.testCaseSnapshot, input = draft ?? execution
   return <aside className="tc-panel" aria-label="Execution panel"><div className="panel-heading"><div><p className="test-id">{snapshot.code}</p><h2>{snapshot.title}</h2></div><Button variant="ghost" disabled={!!draft} onClick={onClose}>Close execution</Button></div>
     <div className="tc-form"><div className="tc-panel-actions"><Button variant="outline" disabled={first || !!draft} onClick={onPrevious}>Previous</Button><Button variant="outline" disabled={last || !!draft} onClick={onNext}>Next</Button></div>
@@ -27,6 +27,7 @@ export function ExecutionPanel({ execution, draft, readOnly, onChange, onSave, o
         {!readOnly && <div className="tc-panel-actions"><Button type="submit">Save result</Button>{draft && <Button type="button" variant="outline" onClick={onCancel}>Cancel changes</Button>}</div>}
         {draft && <p className="muted">Збережіть або скасуйте зміни перед переходом до іншого тесту.</p>}
       </form>
+      {evidence}
       {footer}
     </div>
   </aside>

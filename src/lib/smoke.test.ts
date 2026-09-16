@@ -4,7 +4,7 @@ import { createSmokeMockData } from '@/data/smokeMockData'
 import { emptySmokeState, saveSmokeSuite, suiteCases, createSmokeRun, changeSmokeRunStatus, saveSmokeExecution, saveSmokeRunPrerequisite, deleteSmokeSuite } from './smoke'
 import { runCounts } from './testRuns'
 const context = () => { const seed = createProjectAreaData(); return { cases: seed.testCases.voicli.items, areas: seed.areas, types: seed.testCases.voicli.types } }
-const metadata = { environment: 'Staging', build: '2.5.0-rc1', browser: 'Chrome', deviceOrOs: 'macOS', notes: 'Release smoke' }
+const metadata = { browser: 'Chrome', deviceOrOs: 'macOS', notes: 'Release smoke' }
 function fixture() { const data = context(); const state = createSmokeMockData(data.cases); return { ...data, state, suite: state.suites[0] } }
 function withRun() { const f = fixture(); const state = createSmokeRun(f.state, 'voicli', f.suite.id, metadata, f.cases, f.areas, f.types, 42); return { ...f, state, run: state.runs[0] } }
 const input = { result: 'Pass' as const, actualResult: 'Observed', comment: 'Comment', evidenceNote: 'Evidence' }

@@ -10,6 +10,7 @@ export function AuditDictionarySelect({ kind, value, onChange, id }: { kind: Dic
   const [editing, setEditing] = useState<string | undefined>()
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
   const label = kind === 'area' ? 'Area' : 'Type'
   const values = dictionary[kind]
   return <div className="field">
@@ -21,16 +22,20 @@ export function AuditDictionarySelect({ kind, value, onChange, id }: { kind: Dic
         <div className="audit-dictionary-values">{values.map(option => <div key={option.id} className="audit-dictionary-row">
           <Button variant="ghost" size="sm" onClick={() => { onChange(option.id); setOpen(false) }}>{option.name}</Button>
           <Button variant="ghost" size="sm" aria-label={`Перейменувати ${label} ${option.name}`} onClick={() => { setEditing(option.id); setName(option.name); setError('') }}>✎</Button>
-          <Button variant="ghost" size="sm" aria-label={`Видалити ${label} ${option.name}`} onClick={() => { const message = dictionary.remove(kind, option.id); setError(message); if (!message && editing === option.id) { setEditing(undefined); setName('') } }}>×</Button>
+          <Button variant="ghost" size="sm" disabled={pending} aria-label={`Видалити ${label} ${option.name}`} onClick={async () => { setPending(true); try { const message = await dictionary.remove(kind, option.id); setError(message); if (!message && editing === option.id) { setEditing(undefined); setName('') } } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не вдалося видалити значення.') } finally { setPending(false) } }}>×</Button>
         </div>)}</div>
         <label htmlFor={`${id}-name`}>{editing ? 'Нова назва' : `Додати ${label}`}</label>
         <Input id={`${id}-name`} value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }} />
-        <Button size="sm" onClick={() => {
+        <Button size="sm" disabled={pending} onClick={async () => {
           if (!name.trim()) { setError('Введіть назву.'); return }
           if (values.some(option => option.id !== editing && option.name.toLowerCase() === name.trim().toLowerCase())) { setError('Таке значення вже існує.'); return }
-          const savedId = dictionary.save(kind, name.trim(), editing)
+          setPending(true)
+          try {
+          const savedId = await dictionary.save(kind, name.trim(), editing)
           if (!editing) onChange(savedId)
           setEditing(undefined); setName(''); setError('')
+          } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не вдалося зберегти значення.') }
+          finally { setPending(false) }
         }}>{editing ? 'Зберегти назву' : `Додати ${label}`}</Button>
         {error && <p role="alert" className="form-error">{error}</p>}
       </PopoverContent>

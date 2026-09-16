@@ -13,15 +13,16 @@ import type { Project } from '@/types'
 
 type Props = {
   projects: Project[]
-  onSave: (name: string) => void
+  onSave: (name: string) => string | null | Promise<string | null>
   onClose: () => void
 }
 
 export function ProjectCreateDialog({ projects, onSave, onClose }: Props) {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
-  function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const normalizedName = name.trim().replace(/\s+/g, ' ')
     if (!normalizedName) {
@@ -32,7 +33,10 @@ export function ProjectCreateDialog({ projects, onSave, onClose }: Props) {
       setError('Проєкт із такою назвою вже існує.')
       return
     }
-    onSave(normalizedName)
+    setPending(true)
+    const message = await onSave(normalizedName)
+    if (message) setError(message)
+    setPending(false)
   }
 
   return (
@@ -59,8 +63,8 @@ export function ProjectCreateDialog({ projects, onSave, onClose }: Props) {
             {error && <p id="project-name-error" role="alert" className="form-error">{error}</p>}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Скасувати</Button>
-            <Button type="submit">Створити проєкт</Button>
+            <Button type="button" variant="outline" disabled={pending} onClick={onClose}>Скасувати</Button>
+            <Button type="submit" disabled={pending}>{pending ? 'Створення…' : 'Створити проєкт'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

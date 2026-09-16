@@ -11,6 +11,20 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Page, Project } from '@/types'
 
+const navigationLabels: Record<Page, { label: string; sublabel: string }> = {
+  'Requirements': { label: 'Requirements', sublabel: 'Вимоги' },
+  'Test Plan': { label: 'Test Plan', sublabel: 'План тестування' },
+  'Test Cases': { label: 'Test Cases', sublabel: 'Тест-кейси' },
+  'Test Suites': { label: 'Test Suites', sublabel: 'Набори тестів' },
+  'Checklists': { label: 'Checklists', sublabel: 'Чеклісти' },
+  'Smoke': { label: 'Smoke', sublabel: 'Смоук-тестування' },
+  'Coverage': { label: 'Coverage', sublabel: 'Покриття' },
+  'Test Runs': { label: 'Test Runs', sublabel: 'Запуски тестів' },
+  'Defects': { label: 'Defects', sublabel: 'Дефекти' },
+  'Audit': { label: 'Audit', sublabel: 'Аудит' },
+  'Settings': { label: 'Settings', sublabel: 'Налаштування' },
+}
+
 type Props = {
   projects: Project[]
   project: Project | undefined
@@ -31,15 +45,20 @@ export function AppSidebar({
   onNavigate,
 }: Props) {
   function navigationItem(item: Page) {
+    const { label, sublabel } = navigationLabels[item]
     return (
       <Button
         key={item}
         variant="ghost"
         className="sidebar-link"
+        aria-label={`${label} / ${sublabel}`}
         aria-current={page === item ? 'page' : undefined}
         onClick={() => onNavigate(item)}
       >
-        {item}
+        <span className="sidebar-item-labels">
+          <span className="sidebar-item-label">{label}</span>
+          <span className="sidebar-item-sublabel" lang="uk">{sublabel}</span>
+        </span>
       </Button>
     )
   }
@@ -76,21 +95,30 @@ export function AppSidebar({
 
       <nav aria-label="Розділи застосунку" className="sidebar-navigation">
         <div className="sidebar-group">
+          <p className="sidebar-group-label">PLANNING</p>
           {navigationItem('Requirements')}
           {navigationItem('Test Plan')}
         </div>
         <div className="sidebar-group">
-          <p className="sidebar-group-label">TESTING</p>
+          <p className="sidebar-group-label">TEST DESIGN</p>
           {navigationItem('Test Cases')}
-          {navigationItem('Coverage')}
-          {navigationItem('Test Runs')}
-          {navigationItem('Defects')}
+          {navigationItem('Test Suites')}
           {navigationItem('Checklists')}
           {navigationItem('Smoke')}
+          {navigationItem('Coverage')}
+        </div>
+        <div className="sidebar-group">
+          <p className="sidebar-group-label">EXECUTION</p>
+          {navigationItem('Test Runs')}
+          {navigationItem('Defects')}
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">ANALYSIS</p>
           {navigationItem('Audit')}
+        </div>
+        <div className="sidebar-group">
+          <p className="sidebar-group-label">PROJECT</p>
+          {navigationItem('Settings')}
         </div>
       </nav>
 

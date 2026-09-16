@@ -9,7 +9,7 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 const change = (label: string, value: string) => setFieldValue(screen.getByLabelText(label), value)
 const rows = () => Array.from(document.querySelectorAll<HTMLElement>('.audit-compact-row'))
 const panel = () => screen.getByRole('complementary')
-const openAudit = async () => { await renderAuthenticatedApp(); click('Audit') }
+const openAudit = async () => { await renderAuthenticatedApp(); click('Audit / Аудит'); click('AUDIT-001') }
 
 async function projectMenu(item: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
@@ -30,7 +30,7 @@ describe('Audit table-first UX', () => {
     expect(screen.getByText('Що виявлено')).toBeTruthy()
     expect(screen.getByText('Expected / Очікуваний результат')).toBeTruthy()
     expect(screen.getByText('Actual / Фактичний результат')).toBeTruthy()
-    expect(screen.getByRole('region', { name: 'Evidence / Докази' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Attachments / Evidence' })).toBeTruthy()
     click('Закрити панель Audit')
     expect(screen.queryByRole('complementary')).toBeNull()
     expect(document.querySelector('.audit-with-panel')).toBeNull()
@@ -69,7 +69,7 @@ describe('Audit table-first UX', () => {
 
   it('opens the same right panel for creating an item, then edits and deletes it', async () => {
     await openAudit()
-    click('Додати зауваження')
+    click('+ Add audit finding')
     expect(panel()).toBeTruthy()
     expect(within(panel()).getByText('Новий запис')).toBeTruthy()
     change('Назва', 'Новое зауваження')
@@ -77,7 +77,7 @@ describe('Audit table-first UX', () => {
     change('Location / де виявлено', 'Новый экран')
     change('Expected / Очікуваний результат', 'Ожидается корректное поведение')
     change('Actual / Фактичний результат', 'Фактическое поведение отличается')
-    change('Note', 'Скриншот не приложен')
+    change('Evidence note', 'Скриншот не приложен')
     fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))
     change('Додати Area', 'Checkout')
     click('Додати Area')
@@ -100,8 +100,8 @@ describe('Audit table-first UX', () => {
     await openAudit()
     await projectMenu('QP Notes')
     expect(rows()).toHaveLength(0)
-    expect(screen.getByText('Зауважень поки немає. Додайте перше зауваження.')).toBeTruthy()
-    await projectMenu('Voicli')
+    expect(screen.getByText('Перевірок ще немає. Додайте Audit.')).toBeTruthy()
+    await projectMenu('Voicli'); click('AUDIT-001')
     expect(rows()).toHaveLength(4)
   })
 })
@@ -150,7 +150,8 @@ describe('Audit dictionaries and combined search', () => {
     expect(screen.queryByRole('button', { name: 'Unused' })).toBeNull()
     fireEvent.keyDown(screen.getByLabelText('Додати Area'), { key: 'Escape' })
     await projectMenu('QP Notes')
-    click('Додати зауваження')
+    click('+ Add audit'); change('Title / Назва', 'QP Audit'); click('Save Audit'); click('AUDIT-001')
+    click('+ Add audit finding')
     for (const kind of ['Area', 'Type']) {
       fireEvent.click(within(panel()).getByRole('combobox', { name: kind }))
       expect(screen.queryByRole('button', { name: 'Sign up' })).toBeNull()
@@ -163,11 +164,11 @@ describe('Audit dictionaries and combined search', () => {
     click('Створити зауваження')
     expect(rows()[0].textContent).toContain('QP Area')
     expect(rows()[0].textContent).toContain('QP Type')
-    await projectMenu('Voicli')
+    await projectMenu('Voicli'); click('AUDIT-001')
     fireEvent.keyDown(screen.getByRole('button', { name: 'Type' }), { key: 'Enter' })
     expect(screen.queryByRole('menuitemcheckbox', { name: 'QP Type' })).toBeNull()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
-    await projectMenu('QP Notes')
+    await projectMenu('QP Notes'); click('AUDIT-001')
     fireEvent.click(rows()[0])
     fireEvent.click(within(panel()).getByRole('combobox', { name: 'Type' }))
     click('Перейменувати Type QP Type')

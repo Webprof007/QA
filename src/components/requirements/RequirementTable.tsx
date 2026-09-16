@@ -1,18 +1,20 @@
+import { AddEntityButton } from '@/components/AddEntityButton'
 import { MoreHorizontal, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu'
 import type { RequirementWithTestCases as Requirement, RequirementsViewState as RequirementsProjectState } from '@/types'
 import { coverageLabel, requirementStatuses } from './requirementOptions'
+import type { ReactNode } from 'react'
 
 export type RequirementFilters = { search: string; areaId: string; status: string; coverage: string }
 type Props = {
   items: Requirement[]; areas: RequirementsProjectState['areas']; selectedId?: string
   filters: RequirementFilters; onFilters: (filters: RequirementFilters) => void
   onOpen: (item: Requirement) => void; onEdit: (item: Requirement) => void
-  onDelete: (item: Requirement) => void; onAdd: () => void
+  onDelete: (item: Requirement) => void; onAdd: () => void; importExportActions?: ReactNode
 }
-export function RequirementTable({ items, areas, selectedId, filters, onFilters, onOpen, onEdit, onDelete, onAdd }: Props) {
+export function RequirementTable({ items, areas, selectedId, filters, onFilters, onOpen, onEdit, onDelete, onAdd, importExportActions }: Props) {
   const filtered = Object.values(filters).some(Boolean)
   const header = (key: 'areaId' | 'status' | 'coverage', label: string, options: { value: string; label: string }[]) => <DropdownMenu>
     <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">{label}<SlidersHorizontal /></Button></DropdownMenuTrigger>
@@ -25,7 +27,8 @@ export function RequirementTable({ items, areas, selectedId, filters, onFilters,
     <div className="tc-toolbar">
       <Input aria-label="Search by ID or title" placeholder="Search by ID or title..." value={filters.search} onChange={event => onFilters({ ...filters, search: event.target.value })} />
       {filtered && <Button variant="ghost" size="sm" onClick={() => onFilters({ search: '', areaId: '', status: '', coverage: '' })}>Clear filters</Button>}
-      <Button variant="outline" size="sm" className="tc-add" onClick={onAdd}>+ Add requirement</Button>
+      {importExportActions}
+      <AddEntityButton entity="requirement" onClick={onAdd} />
     </div>
     <table className="tc-table req-table">
       <colgroup><col className="req-code-column" /><col /><col className="req-meta-column" /><col className="req-meta-column" /><col className="req-meta-column" /><col className="tc-actions-column" /></colgroup>

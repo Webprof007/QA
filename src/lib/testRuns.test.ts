@@ -3,7 +3,7 @@ import { createTestRun, changeRunStatus, saveExecution, runCounts, executionResu
 import { initialTestCasesByProject } from '@/data/testCasesMockData'
 import type { TestPlan } from '@/types'
 const source = () => structuredClone(initialTestCasesByProject.voicli)
-const input: RunInput = { name: 'Regression', environment: 'Staging', build: '2.4-rc3', browser: 'Chrome', deviceOrOs: 'macOS', notes: '', testCaseIds: ['demo-test-case-1', 'demo-test-case-2'] }
+const input: RunInput = { name: 'Regression', browser: 'Chrome', deviceOrOs: 'macOS', notes: '', testCaseIds: ['demo-test-case-1', 'demo-test-case-2'] }
 const create = () => { const data = source(); return createTestRun('voicli', input, data.items, [], data.areas, data.types) }
 
 describe('Test Run execution model', () => {

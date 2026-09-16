@@ -1,9 +1,12 @@
+import { AddEntityButton } from '@/components/AddEntityButton'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { DictionaryContext } from '@/components/audit/dictionaryContext'
 import { AuditDictionarySelect } from '@/components/audit/AuditDictionarySelect'
+import { ImportExportActions } from '@/components/import-export/ImportExportActions'
+import { exportRows, validateChecklists } from '@/lib/importExport'
 import { ChecklistRunPanel } from '@/components/checklists/ChecklistRunPanel'
 import type { Checklist, ChecklistRun, ProjectArea } from '@/types'
 import '../App.css'
@@ -14,7 +17,7 @@ import './Planning.css'
 type Props = {
   projectId: string; items: Checklist[]; runs: ChecklistRun[]; areas: ProjectArea[]
   onSave: (item: Checklist) => void; onRun: (run: ChecklistRun) => void
-  onAreaSave: (name: string, id?: string) => string; onAreaRemove: (id: string) => string
+  onAreaSave: (name: string, id?: string) => string | Promise<string>; onAreaRemove: (id: string) => string | Promise<string>
 }
 export function ChecklistsPage({ projectId, items, runs, areas, onSave, onRun, onAreaSave, onAreaRemove }: Props) {
   const [selectedId, setSelectedId] = useState('')
@@ -56,7 +59,7 @@ export function ChecklistsPage({ projectId, items, runs, areas, onSave, onRun, o
   }
   const dictionary = { area: projectAreas, type: [], save: (_kind: 'area' | 'type', name: string, id?: string) => onAreaSave(name, id), remove: (_kind: 'area' | 'type', id: string) => draft?.areaId === id ? 'Area використовується у поточній чернетці.' : onAreaRemove(id) }
   return <DictionaryContext.Provider value={dictionary}><main className="smoke-app"><header className="page-heading"><h1>Checklists</h1></header>
-    <div className={`tc-layout ${active || run ? 'tc-with-panel' : ''}`}><div className="tc-list"><div className="tc-toolbar"><Button className="tc-add" onClick={add}>New Checklist</Button></div>
+    <div className={`tc-layout ${active || run ? 'tc-with-panel' : ''}`}><div className="tc-list"><div className="tc-toolbar"><ImportExportActions kind="checklists" validate={(rows, mapping) => validateChecklists(rows, mapping, { projectId, areas: projectAreas })} onImport={imported => imported.forEach(onSave)} exportRows={exportRows('checklists', { checklists: definitions, areas: projectAreas })} /><AddEntityButton entity="checklist" onClick={add} /></div>
       <table className="tc-table"><colgroup><col style={{ width: '16%' }} /><col /><col style={{ width: '17%' }} /><col style={{ width: '10%' }} /><col style={{ width: '20%' }} /></colgroup><thead><tr>{['ID', 'Title', 'Area', 'Items', 'Updated'].map(label => <th key={label}>{label}</th>)}</tr></thead>
         <tbody>{definitions.map(item => <tr key={item.id} className={selectedId === item.id ? 'tc-selected' : ''} onClick={() => open(item)}><td><button className="tc-open" aria-label={`Open ${item.title}`} title={item.id} onClick={() => open(item)}>{item.id.slice(0, 8)}</button></td><td>{item.title}</td><td>{projectAreas.find(area => area.id === item.areaId)?.name ?? '—'}</td><td>{item.items.length}</td><td>{new Date(item.updatedAt).toLocaleDateString()}</td></tr>)}</tbody>
       </table>{!definitions.length && <p className="muted">Checklists поки немає.</p>}

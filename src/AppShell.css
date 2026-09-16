@@ -43,13 +43,47 @@
 }
 
 .sidebar-navigation {
-  gap: 24px;
+  gap: 12px;
+}
+
+.sidebar-group + .sidebar-group::before {
+  content: '';
+  border-top: 1px solid var(--border);
+  margin: 0 10px 8px;
 }
 
 .sidebar-link {
   justify-content: flex-start;
   width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 48px;
+  padding: 7px 10px;
+  white-space: normal;
+  text-align: left;
   font-weight: 400;
+}
+
+.sidebar-item-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.sidebar-item-label {
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.sidebar-item-sublabel {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--muted-foreground);
 }
 
 .sidebar-link[aria-current='page'] {

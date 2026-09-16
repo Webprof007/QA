@@ -1,6 +1,6 @@
-import type { AuditDictionaryValue, AuditItem, AuditStatus, AuditType, AuditSeverity } from '@/types'
+import type { AuditDictionaryValue, AuditFinding, AuditFindingStatus, AuditType, AuditSeverity, Audit } from '@/types'
 
-export const auditStatuses: { value: AuditStatus; label: string }[] = [
+export const auditStatuses: { value: AuditFindingStatus; label: string }[] = [
   { value: 'open', label: 'Open' },
   { value: 'in-progress', label: 'In progress' },
   { value: 'fixed', label: 'Fixed' },
@@ -25,49 +25,58 @@ const seedTypes: { value: AuditType; label: string }[] = [
 ]
 
 // Demonstration findings only; these are not verified issues in Voicli.
-export const initialAuditByProject: Record<string, AuditItem[]> = {
+export const initialAuditByProject: Record<string, AuditFinding[]> = {
   voicli: [
     {
-      id: 'AUD-001', projectId: 'voicli',
+      id: 'finding-voicli-1', code: 'AUD-001', auditId: 'audit-voicli-demo', createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', projectId: 'voicli',
       title: 'Демо: непомітний фокус кнопки', areaId: 'Landing',
       type: 'accessibility', severity: 'high', status: 'open',
       discoveredAt: '2026-09-10', location: 'Landing → основна CTA',
       description: 'Демонстраційний приклад: під час навігації клавіатурою фокус кнопки складно розрізнити.',
       expected: 'Активний елемент має помітний індикатор фокуса.',
       actual: 'Індикатор фокуса майже зливається з фоном.',
-      evidence: [], comment: 'Приклад запису для ознайомлення з Audit.', taskUrl: '',
+      comment: 'Приклад запису для ознайомлення з Audit.', taskUrl: '',
     },
     {
-      id: 'AUD-002', projectId: 'voicli',
+      id: 'finding-voicli-2', code: 'AUD-002', auditId: 'audit-voicli-demo', createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', projectId: 'voicli',
       title: 'Демо: неперекладений підпис', areaId: 'Settings',
       type: 'localization', severity: 'medium', status: 'in-progress',
       discoveredAt: '2026-09-11', location: 'Settings → мова інтерфейсу',
       description: 'Демонстраційний приклад: один підпис залишився іншою мовою.',
       expected: 'Усі підписи відповідають вибраній мові.',
-      actual: 'Один підпис не перекладено.', evidence: [], comment: '',
+      actual: 'Один підпис не перекладено.', comment: '',
       taskUrl: 'https://example.com/tasks/demo-aud-002',
     },
     {
-      id: 'AUD-003', projectId: 'voicli',
+      id: 'finding-voicli-3', code: 'AUD-003', auditId: 'audit-voicli-demo', createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', projectId: 'voicli',
       title: 'Демо: текст виходить за межі', areaId: 'Pricing',
       type: 'ui-ux', severity: 'low', status: 'fixed',
       discoveredAt: '2026-09-12', location: 'Pricing → картка тарифу',
       description: 'Демонстраційний приклад: довгий текст виходить за межі картки.',
       expected: 'Текст переноситься всередині картки.',
-      actual: 'Частина тексту виходить за правий край.', evidence: [],
+      actual: 'Частина тексту виходить за правий край.',
       comment: 'У прикладі виправлення очікує повторної перевірки.', taskUrl: '',
     },
     {
-      id: 'AUD-004', projectId: 'voicli',
+      id: 'finding-voicli-4', code: 'AUD-004', auditId: 'audit-voicli-demo', createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', projectId: 'voicli',
       title: 'Демо: немає повідомлення про помилку', areaId: 'Registration',
       type: 'bug', severity: 'high', status: 'open',
       discoveredAt: '2026-09-13', location: 'Registration → надсилання форми',
       description: 'Демонстраційний приклад: форма не пояснює причину невдалого надсилання.',
       expected: 'Поруч із формою показано зрозуміле повідомлення.',
-      actual: 'Форма залишається без зворотного зв’язку.', evidence: [], comment: '', taskUrl: '',
+      actual: 'Форма залишається без зворотного зв’язку.', comment: '', taskUrl: '',
     },
   ],
   'qp-notes': [],
 }
 
 export const initialAuditTypes: AuditDictionaryValue[] = seedTypes.map(option => ({ id: option.value, projectId: 'voicli', name: option.label }))
+
+
+export const initialAudits: Audit[] = [{
+  id: 'audit-voicli-demo', code: 'AUDIT-001', projectId: 'voicli',
+  title: 'Демо: перевірка інтерфейсу', typeId: 'ui-ux', status: 'Draft',
+  objective: 'Перевірити основні екрани.', scope: 'Landing, Settings, Pricing, Registration',
+  startDate: '2026-09-10', endDate: '', notes: '', limitations: 'Демонстраційні дані.',
+  createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z',
+}]
