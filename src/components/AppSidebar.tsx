@@ -1,4 +1,4 @@
-import { ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -31,7 +31,6 @@ type Props = {
   page: Page
   onProjectChange: (id: string) => void
   onAddProject: () => void
-  onDeleteProject: () => void
   onNavigate: (page: Page) => void
 }
 
@@ -41,7 +40,6 @@ export function AppSidebar({
   page,
   onProjectChange,
   onAddProject,
-  onDeleteProject,
   onNavigate,
 }: Props) {
   function navigationItem(item: Page) {
@@ -85,11 +83,6 @@ export function AppSidebar({
           <DropdownMenuItem onSelect={onAddProject}>
             <Plus />Додати проєкт
           </DropdownMenuItem>
-          {project && (
-            <DropdownMenuItem variant="destructive" onSelect={onDeleteProject}>
-              <Trash2 />Видалити поточний проєкт
-            </DropdownMenuItem>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -26,9 +26,9 @@ function fetchWithDelete(deleteRequest: () => Promise<Response>) {
 }
 
 async function openConfirmation() {
-  const trigger = await screen.findByRole('button', { name: 'Project: Alpha' })
-  fireEvent.keyDown(trigger, { key: 'Enter' })
-  fireEvent.click(await screen.findByRole('menuitem', { name: 'Видалити поточний проєкт' }))
+  await screen.findByRole('button', { name: 'Project: Alpha' })
+  fireEvent.click(screen.getByRole('button', { name: 'Settings / Налаштування' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete Project' }))
   await screen.findByRole('heading', { name: 'Delete project “Alpha”?' })
 }
 

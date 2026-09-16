@@ -155,7 +155,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   async function addProject(name: string) {
     try {
       const created = await createProjectApi(name)
-      setProjects(current => [...current, created]); setProjectDataLoading(true); setProjectId(created.id); setPage('Smoke'); setCreatingProject(false); setBackendError('')
+      setProjects(current => [...current, created]); setProjectDataLoading(true); setProjectId(created.id); setPage('Settings'); setCreatingProject(false); setBackendError('')
       return null
     } catch (error) { return apiFailure(error) }
   }
@@ -357,7 +357,6 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         page={page}
         onProjectChange={changeProject}
         onAddProject={() => setCreatingProject(true)}
-        onDeleteProject={() => { setDeletingProjectError(''); setDeletingProject(project ?? null) }}
         onNavigate={nextPage => { setFollowupTarget(current => ({ key: current.key + 1 })); setSuiteTarget(current => ({ key: current.key + 1 })); setDefectTarget(current => ({ key: current.key + 1 })); setExecutionTarget(current => ({ key: current.key + 1 })); setPage(nextPage) }}
       />
       <div className="app-content">
@@ -372,7 +371,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         {projectsLoading ? (
           <main className="smoke-app"><p role="status" className="muted">Завантаження проєктів…</p></main>
         ) : page === 'Settings' && project ? (
-          <ProjectSettingsPage key={project.id} projectId={project.id} data={projectSetup} onChange={setProjectSetup} />
+          <ProjectSettingsPage key={project.id} project={project} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} data={projectSetup} onChange={setProjectSetup} onAreaSave={saveArea} onAreaRemove={removeArea} onTypeSave={saveType} onTypeRemove={removeType} onDeleteProject={() => { setDeletingProjectError(''); setDeletingProject(project) }} />
         ) : page === 'Smoke' && project ? (
           <SmokePage initialExecutionId={followupTarget.source?.type === "smokeExecution" ? followupTarget.source.id : undefined} setup={projectSetup} key={project.id + followupTarget.key} projectId={project.id} data={smoke} onChange={setSmoke} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} userId={currentUser.id} />
         ) : page === 'Test Suites' && project ? (

@@ -17,6 +17,7 @@ function apiFetch(options?: { requirementMutationError?: boolean }) {
   return vi.fn((input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/auth/me.php')) return json({ success: true, user })
+    if (url.endsWith('/projects/') && init?.method === 'POST') return json({ success: true, project: { id: 5, name: JSON.parse(String(init.body)).name, description: '', createdByUserId: 42, createdAt: '', updatedAt: '' } }, 201)
     if (url.endsWith('/projects/')) return json({ success: true, projects })
     const projectId = Number(new URL(url).searchParams.get('projectId'))
     if (url.includes('/project-areas/')) return json({ success: true, areas: [] })
@@ -46,6 +47,21 @@ it('loads backend-backed project data and replaces it when Project changes', asy
   expect(screen.queryByRole('button', { name: 'Open REQ-3' })).toBeNull()
 
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('/requirements/?projectId=4'))).toBe(true))
+})
+
+it('opens Settings for a newly created backend Project and loads its scoped resources', async () => {
+  const fetch = apiFetch()
+  vi.stubGlobal('fetch', fetch)
+  render(<App />)
+  const trigger = await screen.findByRole('button', { name: 'Project: Alpha' })
+  fireEvent.keyDown(trigger, { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Додати проєкт' }))
+  fireEvent.change(screen.getByLabelText('Назва проєкту'), { target: { value: 'Gamma' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Створити проєкт' }))
+  expect(await screen.findByRole('heading', { name: 'Settings / Налаштування' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Project: Gamma' })).toBeTruthy()
+  expect(screen.getByText('Gamma')).toBeTruthy()
+  await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('/project-areas/?projectId=5'))).toBe(true))
 })
 
 it('keeps Requirements state unchanged when backend validation rejects create', async () => {

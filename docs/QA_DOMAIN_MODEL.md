@@ -105,9 +105,9 @@ domain remain future work.
 
 Every selection, lookup and write must check `projectId`, including **both ends** of a relation. A project-keyed container alone is not sufficient validation. Updates should match `(projectId, id)`, even when generated IDs are normally globally unique. Picker filtering is usability protection, not backend authorization.
 
-All functional areas use `ProjectArea` and `areaId`. Audit also uses `areaId`; its filter's UI key `area` is only presentation state. The sole seed catalog is `data/projectAreasMockData.ts`. Existing IDs (including legacy `tc-area-*` IDs) are opaque, not module ownership markers. Do not regenerate an ID when renaming an Area.
+All functional areas use `ProjectArea` and `areaId`. Audit also uses `areaId`; its filter's UI key `area` is only presentation state. The selected Project's API-backed `projectAreas` collection is the live source of truth. Existing IDs are opaque, not module ownership markers. Do not regenerate an ID when renaming an Area.
 
-`createProjectAreaData()` makes an independent seed copy for an app instance. Module state does not store its own Area arrays. The `areas` properties on `TestCasesProjectState` / `RequirementsProjectState` are page view props, supplied from shared state. Seed view fixtures likewise reference the common catalog.
+Module state does not store its own Area arrays. The `areas` properties on `TestCasesProjectState` / `RequirementsProjectState` are page view props supplied from shared state. Local fixtures may provide Areas only as isolated test data, never as a runtime fallback for the API catalog.
 
 Renaming an Area updates all live views by ID. Deletion is blocked while used by a saved live entity; an open editor checks its own draft and validates selected IDs on save. Historical snapshot labels do not block deleting an otherwise unused Area.
 
@@ -126,6 +126,18 @@ Requirements, Test Plans and Test Case Types independently as one project-scoped
 batch. Their old demo seeds are not fallback data. Existing data is retained while
 an error is shown, and responses for an abandoned Project selection are ignored.
 Project edit is not implemented because the current backend has no update endpoint.
+After a successful Project create, the new Project becomes active and opens Project
+Settings while its Areas, Requirements, Test Plans and Test Case Types load.
+
+Project Settings is a presentation and management screen, not a domain entity or
+another state owner. It shows API Project name/description read-only, because the
+backend has no Project update endpoint. Project Areas and Test Case Types are
+created, renamed and deleted centrally in Settings through their existing API-backed
+collections. Requirements, Test Cases, Checklists and Audit only select from those
+shared dictionaries; they do not expose parallel dictionary CRUD. Environment,
+Release and Build management uses the existing shared `projectSetup` state and
+remains frontend/session-only. The Danger Zone invokes the existing confirmed
+Project deletion flow.
 
 Test Cases, Test Suites, Checklists/Runs, Smoke, Test Runs/Executions, Defects/
 Retests, Audit, Evidence, Environment/Release/Build and derived Reports remain

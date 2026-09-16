@@ -1,0 +1,12 @@
+.settings-page { display: grid; gap: 24px; }
+.settings-section { display: grid; gap: 12px; padding: 18px 0 24px; border-bottom: 1px solid var(--border); }
+.settings-section h2 { font-size: 16px; font-weight: 600; }
+.settings-section h3 { font-size: 14px; font-weight: 600; }
+.settings-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.settings-general { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; font-size: 13px; }
+.settings-general dt { color: var(--muted-foreground); margin-bottom: 4px; }
+.settings-general dd { overflow-wrap: anywhere; }
+.settings-row-actions { width: 150px; text-align: right; }
+.settings-subsection { display: grid; gap: 10px; padding-top: 8px; }
+.settings-danger { grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-bottom: 0; }
+@media (max-width: 600px) { .settings-general, .settings-danger { grid-template-columns: minmax(0, 1fr); } .settings-section-heading { align-items: stretch; flex-direction: column; } }
