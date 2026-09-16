@@ -8,10 +8,16 @@
 .req-test-option label { min-width: 0; cursor: pointer; overflow-wrap: anywhere; }
 .req-test-option button { margin-top: 2px; flex-shrink: 0; }
 
-.req-picker { width: min(680px, calc(100vw - 32px)); max-width: 680px; max-height: 85dvh; overflow-y: auto; }
+.req-picker { width: min(680px, calc(100vw - 32px)); max-width: 680px; max-height: 85dvh; min-width: 0; overflow-y: auto; }
 .req-picker-filters { display: grid; grid-template-columns: minmax(0, 1fr) 145px; gap: 10px; }
 .req-picker-selected { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .req-picker-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) 80px; gap: 10px; align-items: center; padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer; }
 .req-picker-title { display: block; overflow-wrap: anywhere; }
 .req-picker-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.req-picker-results { min-width: 0; max-width: 100%; overflow-x: auto; }
 .req-linked-list { max-height: 220px; overflow-y: auto; }
+
+@media (max-width: 560px) {
+  .req-picker { width: calc(100vw - 16px); max-height: 90dvh; padding: 12px; }
+  .req-picker-filters { grid-template-columns: minmax(0, 1fr); }
+}
