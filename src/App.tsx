@@ -30,6 +30,7 @@ import { ownerEvidence, replaceEvidence, commitRetestEvidence, type EvidenceOwne
 import type { EvidenceItem } from '@/types'
 import { useCallback, useEffect, useState, type SetStateAction } from 'react'
 import { AppSidebar } from '@/components/AppSidebar'
+import { navigationLabels } from '@/components/navigationLabels'
 import { ProjectCreateDialog } from '@/components/ProjectCreateDialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -48,6 +49,13 @@ import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
 import { createProject as createProjectApi, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, loadAreas, loadProjects, loadRequirements, loadTestCaseTypes, loadTestPlans, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCaseType, saveTestPlan as saveTestPlanApi } from '@/lib/qaApi'
+
+function lastPageFor(userId: number, projectKey: string): Page {
+  try {
+    const saved = window.localStorage.getItem(`qa-last-page:${userId}:${projectKey}`) as Page | null
+    return saved && navigationLabels[saved] ? saved : 'Settings'
+  } catch { return 'Settings' }
+}
 
 function App() {
   const auth = useAuth()
@@ -83,7 +91,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projectDataLoading, setProjectDataLoading] = useState(false)
   const [backendError, setBackendError] = useState('')
-  const [page, setPage] = useState<Page>('Smoke')
+  const [page, setPage] = useState<Page>('Settings')
   const [projectSetup, setProjectSetup] = useState(createProjectSetupMockData)
   const [seed] = useState(createProjectAreaData)
   const [testSuites, setTestSuites] = useState(() => createTestSuitesMockData(Object.values(seed.testCases).flatMap(data => data.items)))
@@ -112,6 +120,11 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const availableProjects = projects
   const project = availableProjects.find(item => item.id === projectId)
 
+  useEffect(() => {
+    if (!projectId) return
+    try { window.localStorage.setItem(`qa-last-page:${currentUser.id}:${projectId}`, page) } catch { /* storage can be unavailable in private browsing */ }
+  }, [currentUser.id, page, projectId])
+
   const apiFailure = useCallback((error: unknown) => {
     if (error instanceof ApiError && error.status === 401) onUnauthorized()
     return errorMessage(error)
@@ -124,12 +137,14 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         setProjects(items)
         setBackendError('')
         setProjectDataLoading(items.length > 0)
-        setProjectId(current => items.some(item => item.id === current) ? current : items[0]?.id ?? '')
+        const nextProjectId = items[0]?.id ?? ''
+        setProjectId(nextProjectId)
+        if (nextProjectId) setPage(lastPageFor(currentUser.id, nextProjectId))
       }
     }).catch(error => { if (!controller.signal.aborted) setBackendError(apiFailure(error)) })
       .finally(() => { if (!controller.signal.aborted) setProjectsLoading(false) })
     return () => controller.abort()
-  }, [apiFailure])
+  }, [apiFailure, currentUser.id])
 
   useEffect(() => {
     if (!projectId) return
@@ -149,7 +164,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   }, [projectId, apiFailure])
 
   function changeProject(id: string) {
-    if (availableProjects.some(item => item.id === id)) { setProjectDataLoading(true); setBackendError(''); setProjectId(id); setFollowupTarget({ key: 0 }); setSuiteTarget({ key: 0 }); setDefectTarget({ key: 0 }); setExecutionTarget({ key: 0 }) }
+    if (availableProjects.some(item => item.id === id)) { setProjectDataLoading(true); setBackendError(''); setProjectId(id); setPage(lastPageFor(currentUser.id, id)); setFollowupTarget({ key: 0 }); setSuiteTarget({ key: 0 }); setDefectTarget({ key: 0 }); setExecutionTarget({ key: 0 }) }
   }
 
   async function addProject(name: string) {
@@ -363,6 +378,13 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         <div className="account-bar">
           <div className="account-back-slot" ref={setAccountBackSlot}>
           </div>
+          <div className="account-page-context" aria-label={`Current page: ${navigationLabels[page].label} / ${navigationLabels[page].sublabel}`}>
+            <span className="account-page-title">
+              <span>{navigationLabels[page].label}</span>
+              <span lang="uk">{navigationLabels[page].sublabel}</span>
+            </span>
+          </div>
+          {project && <span className="account-project-name">Project: {project.name}</span>}
           <span>{currentUser.name}</span><Button variant="ghost" size="sm" disabled={logoutPending} onClick={() => void logout()}>{logoutPending ? 'Зачекайте…' : 'Вийти'}</Button>
           {logoutError && <p role="alert" className="auth-error">{logoutError}</p>}
         </div>

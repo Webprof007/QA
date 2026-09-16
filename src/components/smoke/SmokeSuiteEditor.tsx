@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { TestCaseLinkPicker } from '@/components/requirements/TestCaseLinkPicker'
@@ -12,7 +13,7 @@ export function SmokeSuiteEditor({ initial, code, cases, areas, types, onSave, o
   const [draft, setDraft] = useState(() => structuredClone(initial))
   const [picker, setPicker] = useState(false), [error, setError] = useState('')
   const orderButtons = (index: number, count: number, label: string, move: (direction: number) => void, remove: () => void) => <div className="tc-order"><Button type="button" variant="ghost" size="sm" disabled={index === 0} aria-label={`Move ${label} up`} onClick={() => move(-1)}>↑</Button><Button type="button" variant="ghost" size="sm" disabled={index + 1 === count} aria-label={`Move ${label} down`} onClick={() => move(1)}>↓</Button><Button type="button" variant="ghost" size="sm" aria-label={`Remove ${label}`} onClick={remove}>Remove</Button></div>
-  return <aside className="tc-panel" aria-label="Smoke suite editor"><div className="panel-heading"><div><p className="test-id">{code}</p><h2>Smoke Suite</h2></div><Button variant="ghost" onClick={onCancel}>Close suite editor</Button></div>
+  return <aside className="tc-panel" aria-label="Smoke suite editor"><div className="panel-heading"><div><p className="test-id">{code}</p><h2>Smoke Suite</h2></div><Button variant="ghost" size="icon" aria-label="Close suite editor" title="Close suite editor" onClick={onCancel}><X /></Button></div>
     <form className="tc-form" onSubmit={event => { event.preventDefault(); setError(onSave(draft) ?? '') }}>
       <div className="field"><label htmlFor="smoke-name">Name</label><Input id="smoke-name" required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></div>
       <div className="field"><label htmlFor="smoke-description">Description</label><Textarea id="smoke-description" rows={3} value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></div>

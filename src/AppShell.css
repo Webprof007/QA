@@ -11,13 +11,29 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 28px 14px 20px;
+  padding: 8px 14px 20px;
   border-right: 1px solid var(--border);
   background: var(--background);
   overflow-y: auto;
 }
 
+.app-shell:has(.app-sidebar.is-collapsed) { grid-template-columns: 64px minmax(0, 1fr); }
+.app-sidebar.is-collapsed { padding-inline: 8px; }
+.app-sidebar.is-collapsed .sidebar-brand { justify-content: center; padding-inline: 0; }
+.app-sidebar.is-collapsed .sidebar-brand > span,
+.app-sidebar.is-collapsed .sidebar-project-name,
+.app-sidebar.is-collapsed .sidebar-item-labels,
+.app-sidebar.is-collapsed .sidebar-group-label { display: none; }
+.app-sidebar.is-collapsed .sidebar-project { justify-content: center; padding-inline: 6px; }
+.app-sidebar.is-collapsed .sidebar-project > svg { margin: 0; }
+.app-sidebar.is-collapsed .sidebar-link { justify-content: center; padding-inline: 6px; }
+.app-sidebar.is-collapsed .sidebar-group + .sidebar-group::before { margin-inline: 2px; }
+
 .sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
   padding: 0 10px;
   font-size: 18px;
   font-weight: 650;
@@ -39,11 +55,11 @@
 .sidebar-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .sidebar-navigation {
-  gap: 12px;
+  gap: 8px;
 }
 
 .sidebar-group + .sidebar-group::before {
@@ -57,8 +73,8 @@
   width: 100%;
   min-width: 0;
   height: auto;
-  min-height: 48px;
-  padding: 7px 10px;
+  min-height: 42px;
+  padding: 5px 10px;
   white-space: normal;
   text-align: left;
   font-weight: 400;
@@ -67,7 +83,7 @@
 .sidebar-item-labels {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
   width: 100%;
   overflow-wrap: anywhere;
@@ -117,7 +133,44 @@
 .suite-data:hover, .suite-data:focus-visible { background: var(--muted); outline: none; }
 .suite-name { font-weight: 500; }
 
-.account-back-slot { margin-right: auto; min-width: 0; }
+.account-back-slot { min-width: 0; }
+
+.account-page-context {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.account-project-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-page-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--muted);
+}
+
+.account-page-title span:last-child {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+}
 
 .account-bar {
   display: flex;
@@ -142,7 +195,7 @@
   }
 
   .app-sidebar {
-    padding: 20px 8px;
+    padding: 8px 8px 20px;
     gap: 20px;
   }
 
@@ -162,4 +215,10 @@
   .app-content > .smoke-app {
     min-width: 360px;
   }
+
+  .account-bar { padding-inline: 14px; gap: 7px; }
+  .account-page-context { gap: 8px; }
+  .account-project-name { max-width: 120px; }
+  .account-page-title { gap: 4px; font-size: 12px; }
+  .account-page-title span:last-child { font-size: 11px; }
 }

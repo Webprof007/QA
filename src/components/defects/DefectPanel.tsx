@@ -4,12 +4,13 @@ import { ProjectContextFields } from '@/components/project-setup/ProjectContextF
 import { emptyProjectSetup } from '@/lib/projectSetup'
 import type { ProjectSetupState } from '@/types'
 import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { defectSeverities, defectPriorities, defectStatuses, safeExternalUrl } from '@/lib/defects'
 import type { Defect, ProjectArea } from '@/types'
 export function DefectPanel({ retestSection, setup = emptyProjectSetup, item, editing, error, areas, sourceSection, onChange, onSave, onEdit, onCancel, onClose }: { retestSection?: ReactNode; setup?: ProjectSetupState; item: Defect; editing: boolean; error: string; areas: ProjectArea[]; sourceSection?: ReactNode; onChange: (item: Defect) => void; onSave: () => void; onEdit: () => void; onCancel: () => void; onClose: () => void }) {
-  return <aside className="tc-panel" aria-label="Defect panel"><div className="panel-heading"><div><p className="test-id">{item.code}</p><h2>{editing ? 'Defect' : item.title}</h2></div><Button variant="ghost" onClick={onClose}>Close defect</Button></div>
+  return <aside className="tc-panel" aria-label="Defect panel"><div className="panel-heading"><div><p className="test-id">{item.code}</p><h2>{editing ? 'Defect' : item.title}</h2></div><Button variant="ghost" size="icon" aria-label="Close defect" title="Close defect" onClick={onClose}><X /></Button></div>
     <form className="tc-form" onSubmit={event => { event.preventDefault(); onSave() }}>
       {!editing && <Button type="button" variant="outline" onClick={onEdit}>Edit Defect</Button>}
       <div className="field"><label htmlFor="defect-title">Title</label>{editing ? <Input id="defect-title" required value={item.title} onChange={event => onChange({ ...item, title: event.target.value })} /> : <p>{item.title}</p>}</div>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Download, Upload } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { autoMapHeaders, downloadExport, importFields, readImportFile, type ImportKind, type ImportRow, type ImportValidation } from '@/lib/importExport'
 
@@ -20,7 +21,7 @@ export function ImportExportActions<T>({ kind, validate, onImport, exportRows }:
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not read this file.'); setRows([]); setHeaders([]) }
   }
   function close() { setOpen(false); setRows([]); setHeaders([]); setMapping({}); setError('') }
-  return <><Button variant="outline" size="sm" onClick={() => setOpen(true)}>Import</Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm">Export</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => downloadExport(kind, 'csv', exportRows)}>CSV</DropdownMenuItem><DropdownMenuItem onSelect={() => downloadExport(kind, 'xlsx', exportRows)}>XLSX</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+  return <div className="import-export-actions"><Button variant="outline" size="sm" className="h-8" aria-label="Import" title="Import" onClick={() => setOpen(true)}><Upload /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-8" aria-label="Export" title="Export"><Download /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => downloadExport(kind, 'csv', exportRows)}>CSV</DropdownMenuItem><DropdownMenuItem onSelect={() => downloadExport(kind, 'xlsx', exportRows)}>XLSX</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
     <Dialog open={open} onOpenChange={value => { if (!value) close() }}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Import {kind === 'testCases' ? 'Test Cases' : kind[0].toUpperCase() + kind.slice(1)}</DialogTitle><DialogDescription>Choose a CSV or XLSX file, review its columns and confirm the valid rows.</DialogDescription></DialogHeader>
       <Input aria-label="Upload import file" type="file" accept=".csv,.xlsx" onChange={event => void choose(event.target.files?.[0])} />
       {error && <p role="alert" className="form-error">{error}</p>}
@@ -30,5 +31,5 @@ export function ImportExportActions<T>({ kind, validate, onImport, exportRows }:
         {result?.issues.length ? <ul className="form-error">{result.issues.slice(0, 10).map(issue => <li key={issue.row}>Row {issue.row} — {[...issue.errors, ...issue.warnings].join('; ')}</li>)}</ul> : null}
       </div>}
       <DialogFooter><Button variant="outline" disabled={pending} onClick={close}>Cancel</Button><Button disabled={!result?.values.length || pending} onClick={async () => { if (!result) return; setPending(true); setError(''); try { await onImport(result.values); close() } catch (reason) { setError(reason instanceof Error ? reason.message : 'Import failed.') } finally { setPending(false) } }}>{pending ? 'Importing…' : result?.issues.some(issue => issue.errors.length) ? `Import ${result.values.length} valid rows` : `Import ${result?.values.length ?? 0} rows`}</Button></DialogFooter>
-    </DialogContent></Dialog></>
+    </DialogContent></Dialog></div>
 }

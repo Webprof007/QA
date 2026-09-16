@@ -28,7 +28,6 @@ it('uses bilingual section titles and Ukrainian helper and empty-state text', ()
   render(<Harness description="" emptyDictionaries />)
 
   for (const title of [
-    'General / Загальне',
     'Project Areas / Області проєкту',
     'Test Case Types / Типи тест-кейсів',
     'Environments / Середовища',
@@ -39,7 +38,6 @@ it('uses bilingual section titles and Ukrainian helper and empty-state text', ()
   ]) expect(screen.getByRole('heading', { name: title })).toBeTruthy()
 
   for (const text of [
-    'Основна інформація про проєкт.',
     'Функціональні області проєкту, що використовуються у Requirements, Test Cases, Checklists, Defects, Audit та Coverage.',
     'Типи тест-кейсів, доступні в межах цього проєкту.',
     'Середовища, у яких виконується тестування проєкту.',
@@ -52,15 +50,15 @@ it('uses bilingual section titles and Ukrainian helper and empty-state text', ()
     'Збірок поки немає.',
   ]) expect(screen.getByText(text)).toBeTruthy()
 
-  const general = screen.getByRole('region', { name: 'General / Загальне' })
-  expect(within(general).queryByText('Description')).toBeNull()
+  expect(screen.queryByText('General / Загальне')).toBeNull()
+  expect(screen.queryByText('Основна інформація про проєкт.')).toBeNull()
   expect(screen.queryByText(/Frontend session only/i)).toBeNull()
 })
 
 it('manages project-scoped Areas and Test Case Types from Settings', async () => {
   render(<Harness />)
-  expect(screen.getByText('Alpha')).toBeTruthy()
-  expect(screen.getByText('API project')).toBeTruthy()
+  expect(screen.queryByText('Alpha')).toBeNull()
+  expect(screen.queryByText('API project')).toBeNull()
   expect(screen.queryByText('Foreign Area')).toBeNull()
   expect(screen.queryByText('Foreign Type')).toBeNull()
 

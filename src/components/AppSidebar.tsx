@@ -1,4 +1,5 @@
-import { ChevronDown, Plus } from 'lucide-react'
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -10,20 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Page, Project } from '@/types'
-
-const navigationLabels: Record<Page, { label: string; sublabel: string }> = {
-  'Requirements': { label: 'Requirements', sublabel: 'Вимоги' },
-  'Test Plan': { label: 'Test Plan', sublabel: 'План тестування' },
-  'Test Cases': { label: 'Test Cases', sublabel: 'Тест-кейси' },
-  'Test Suites': { label: 'Test Suites', sublabel: 'Набори тестів' },
-  'Checklists': { label: 'Checklists', sublabel: 'Чеклісти' },
-  'Smoke': { label: 'Smoke', sublabel: 'Смоук-тестування' },
-  'Coverage': { label: 'Coverage', sublabel: 'Покриття' },
-  'Test Runs': { label: 'Test Runs', sublabel: 'Запуски тестів' },
-  'Defects': { label: 'Defects', sublabel: 'Дефекти' },
-  'Audit': { label: 'Audit', sublabel: 'Аудит' },
-  'Settings': { label: 'Settings', sublabel: 'Налаштування' },
-}
+import { navigationLabels } from '@/components/navigationLabels'
 
 type Props = {
   projects: Project[]
@@ -42,6 +30,7 @@ export function AppSidebar({
   onAddProject,
   onNavigate,
 }: Props) {
+  const [collapsed, setCollapsed] = useState(false)
   function navigationItem(item: Page) {
     const { label, sublabel } = navigationLabels[item]
     return (
@@ -62,12 +51,12 @@ export function AppSidebar({
   }
 
   return (
-    <div className="app-sidebar">
-      <div className="sidebar-brand">QA Tool</div>
+    <div className={`app-sidebar${collapsed ? ' is-collapsed' : ''}`}>
+      <div className="sidebar-brand"><span>QA Tool</span><Button variant="ghost" size="icon" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(value => !value)}>{collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button></div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="sidebar-project">
-            <span>Project: {project?.name ?? 'Немає проєктів'}</span>
+            <span className="sidebar-project-name">Project: {project?.name ?? 'Немає проєктів'}</span>
             <ChevronDown />
           </Button>
         </DropdownMenuTrigger>

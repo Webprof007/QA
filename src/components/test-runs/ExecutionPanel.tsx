@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { RichText } from '@/components/rich-text/RichText'
 import { executionResults, type ExecutionInput } from '@/lib/testRuns'
@@ -13,7 +14,7 @@ export type ExecutionPanelProps = {
 }
 export function ExecutionPanel({ execution, draft, readOnly, onChange, onSave, onCancel, onClose, onPrevious, onNext, first, last, footer, evidence }: ExecutionPanelProps) {
   const snapshot = execution.testCaseSnapshot, input = draft ?? execution
-  return <aside className="tc-panel" aria-label="Execution panel"><div className="panel-heading"><div><p className="test-id">{snapshot.code}</p><h2>{snapshot.title}</h2></div><Button variant="ghost" disabled={!!draft} onClick={onClose}>Close execution</Button></div>
+  return <aside className="tc-panel" aria-label="Execution panel"><div className="panel-heading"><div><p className="test-id">{snapshot.code}</p><h2>{snapshot.title}</h2></div><Button variant="ghost" size="icon" aria-label="Close execution" title="Close execution" disabled={!!draft} onClick={onClose}><X /></Button></div>
     <div className="tc-form"><div className="tc-panel-actions"><Button variant="outline" disabled={first || !!draft} onClick={onPrevious}>Previous</Button><Button variant="outline" disabled={last || !!draft} onClick={onNext}>Next</Button></div>
       <dl className="tc-field-pair">{[['Area', snapshot.areaName], ['Priority', snapshot.priority], ['Type', snapshot.typeName], ['Status', snapshot.status]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}</dd></div>)}</dl>
       <section className="tc-section"><h3>Preconditions / Передумови</h3>{snapshot.preconditions.length ? <ol>{snapshot.preconditions.map((value, index) => <li key={index}><RichText value={value} /></li>)}</ol> : <p>—</p>}</section>

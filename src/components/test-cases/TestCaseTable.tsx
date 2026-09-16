@@ -36,10 +36,10 @@ export function TestCaseTable({ items, areas, types, selectedId, filters, sort, 
   </DropdownMenu>
   return <section className="tc-list" aria-label="Test cases">
     <div className="tc-toolbar">
+      <AddEntityButton entity="test case" onClick={onAdd} />
       <Input aria-label="Search by ID or title" placeholder="Search by ID or title..." value={filters.search} onChange={event => onFilters({ ...filters, search: event.target.value })} />
       {filtered && <Button variant="ghost" size="sm" onClick={() => onFilters({ search: '', areaId: '', typeId: '', priority: '', status: '' })}>Clear filters</Button>}
       {importExportActions}
-      <AddEntityButton entity="test case" onClick={onAdd} />
     </div>
     <table className="tc-table">
       <colgroup><col className="tc-code-column" /><col /><col className="tc-meta-column" /><col className="tc-meta-column" /><col className="tc-meta-column" /><col className="tc-meta-column" /><col className="tc-actions-column" /></colgroup>

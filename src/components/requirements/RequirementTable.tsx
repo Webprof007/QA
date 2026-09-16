@@ -25,10 +25,10 @@ export function RequirementTable({ items, areas, selectedId, filters, onFilters,
   </DropdownMenu>
   return <section className="tc-list" aria-label="Requirements list">
     <div className="tc-toolbar">
+      <AddEntityButton entity="requirement" onClick={onAdd} />
       <Input aria-label="Search by ID or title" placeholder="Search by ID or title..." value={filters.search} onChange={event => onFilters({ ...filters, search: event.target.value })} />
       {filtered && <Button variant="ghost" size="sm" onClick={() => onFilters({ search: '', areaId: '', status: '', coverage: '' })}>Clear filters</Button>}
       {importExportActions}
-      <AddEntityButton entity="requirement" onClick={onAdd} />
     </div>
     <table className="tc-table req-table">
       <colgroup><col className="req-code-column" /><col /><col className="req-meta-column" /><col className="req-meta-column" /><col className="req-meta-column" /><col className="tc-actions-column" /></colgroup>
