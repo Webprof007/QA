@@ -16,9 +16,6 @@ import { Input } from '@/components/ui/input'
 import { DefectPanel } from '@/components/defects/DefectPanel'
 import { defectFromSource, newDefect, defectSeverities, defectPriorities, defectStatuses } from '@/lib/defects'
 import type { Defect, ProjectArea, TestRunsState } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
 export function DefectsPage({ retests = [], cases = [], types = [], onRetest, onRetestTransition, setup = emptyProjectSetup, projectId, items, areas, runs, initialId, sourceRef, onSave }: { retests?: DefectRetest[]; cases?: TestCase[]; types?: TestCaseDictionaryValue[]; onRetest?: (id: string, input: RetestInput, attachments: EvidenceDraft[]) => string | null; onRetestTransition?: (id: string, action: RetestAction, retestId?: string) => string | null; setup?: ProjectSetupState; projectId: string; items: Defect[]; areas: ProjectArea[]; runs: TestRunsState; initialId?: string; sourceRef?: DefectSourceRef; onSave: (draft: Defect) => string | null }) {
   const context = useDefectContext()
   const [selectedId, setSelectedId] = useState(initialId ?? '')

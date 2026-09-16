@@ -42,7 +42,7 @@ describe('QA API boundary', () => {
       .mockResolvedValueOnce(json({ success: true, deletedProjectId: 3 }))
     vi.stubGlobal('fetch', fetch)
     await expect(createProject('Voicli', 'QA')).resolves.toEqual(expect.objectContaining({ id: '3' }))
-    await deleteProject('3')
+    await expect(deleteProject('3')).resolves.toBe('3')
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Voicli', description: 'QA' })
     expect(fetch.mock.calls[0][1].method).toBe('POST')
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ id: 3 })

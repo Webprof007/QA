@@ -190,9 +190,21 @@ Snapshot precedence for a new attempt: current live central TestCase through `cr
 
 History is chronological, with stable append order for equal timestamps; Retest #N is derived. Saved details always show snapshots. New → Open and Open/In Progress → Ready for Retest have explicit actions; existing manual Defect status editing remains. Saving any result leaves Ready for Retest unchanged. The latest Pass offers Close Defect (Closed); the latest Fail offers Reopen Defect (Open); Blocked offers neither. Clicking Close/Reopen is the user's explicit status confirmation, never an automatic effect of saving. Outcome actions validate the latest attempt, project, status, result and whether the Defect has since changed. Closed/Rejected/Duplicate do not allow new Retests; history remains readable. There is no general status audit log or permissions workflow.
 
-## Known exceptions — Requires separate redesign decision
+## Project deletion ownership
 
-**Deletion:** Current deletion cleans Requirement links and project data locally; archive/FK policies, historical source deletion and concurrent edits need backend decisions. Demo project membership is not a permissions system.
+Project is the root-owned entity for QA data. After explicit user confirmation,
+deleting a Project means permanent deletion of every project-owned QA entity and
+relation. The backend operation must preserve its authorization rules and run in
+one database transaction so either the complete project graph is deleted or no
+part of it is deleted. Child rows must be removed through verified `ON DELETE
+CASCADE` constraints or explicit project-scoped child-to-parent deletes; global FK
+checks must not be disabled.
+
+Auth users and session data are not owned by Project and must not be deleted.
+Project membership relations may be deleted with the Project. When backend file
+storage exists, physical Evidence files owned by the Project must also be removed
+as part of the deletion workflow. The current browser-only object URLs require no
+server cleanup; this file-storage step remains backend-dependent.
 
 ## Shared Environments, Releases and Builds
 

@@ -7,8 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { saveBuild, saveEnvironment, saveRelease, deleteSetupEntity, releaseStatuses } from '@/lib/projectSetup'
 import type { Build, Environment, ProjectSetupState, Release } from '@/types'
-import './TestCasesPage.css'
-import './AuditPage.css'
 type Draft = { kind: 'Environment'; value: Environment } | { kind: 'Release'; value: Release } | { kind: 'Build'; value: Build }
 export function ProjectSettingsPage({ projectId, data, onChange }: { projectId: string; data: ProjectSetupState; onChange: Dispatch<SetStateAction<ProjectSetupState>> }) {
   const [view, setView] = useState<'environments' | 'releases'>('environments'), [draft, setDraft] = useState<Draft | null>(null), [error, setError] = useState('')

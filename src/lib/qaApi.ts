@@ -31,7 +31,10 @@ export const adaptType = (value: BackendType): TestCaseDictionaryValue => ({ id:
 
 export async function loadProjects(signal?: AbortSignal) { return (await apiRequest<{ success: true; projects: BackendProject[] }>('/projects/', { signal })).projects.map(adaptProject) }
 export async function createProject(name: string, description = '') { return adaptProject((await apiRequest<{ success: true; project: BackendProject }>('/projects/', { method: 'POST', body: { name, description } })).project) }
-export async function deleteProject(idValue: string) { await apiRequest('/projects/', { method: 'DELETE', body: { id: backendId(idValue) } }) }
+export async function deleteProject(idValue: string) {
+  const response = await apiRequest<{ success: true; deletedProjectId: number }>('/projects/', { method: 'DELETE', body: { id: backendId(idValue) } })
+  return id(response.deletedProjectId)
+}
 
 export async function loadAreas(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; areas: BackendArea[] }>(`/project-areas/${query(projectId)}`, { signal })).areas.map(adaptArea) }
 export async function saveArea(projectId: string, name: string, idValue?: string) {

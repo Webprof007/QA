@@ -1,0 +1,2 @@
+.checklist-run-item { padding: 12px 0; border-bottom: 1px solid var(--border); min-width: 0; }
+.checklist-run-item p { white-space: pre-wrap; overflow-wrap: anywhere; }

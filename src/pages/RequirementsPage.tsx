@@ -7,9 +7,6 @@ import { ImportExportActions } from '@/components/import-export/ImportExportActi
 import { exportRows, validateRequirements } from '@/lib/importExport'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import type { RequirementWithTestCases as Requirement, RequirementsViewState as RequirementsProjectState, TestCase } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
 import './RequirementsPage.css'
 
 type Props = { types?: import('@/types').TestCaseDictionaryValue[]; areaInUse?: (id: string) => boolean; projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>>; onSaveItem?: (item: Requirement, creating: boolean) => Promise<Requirement>; onDeleteItem?: (id: string) => Promise<void>; onImportItems?: (items: Requirement[]) => Promise<void>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string> }

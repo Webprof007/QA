@@ -6,8 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AuditList, type AuditFilters, type AuditSortKey } from '@/components/audit/AuditList'
 import { AuditWorkspacePanel } from '@/components/audit/AuditWorkspacePanel'
 import type { AuditDictionaryValue, ProjectArea, AuditFinding } from '@/types'
-import '../App.css'
-import './AuditPage.css'
 
 export type AuditFindingsProps = { initialFindingId?: string; typeInUse?: (id: string) => boolean; auditId: string; readOnly: boolean; areaInUse?: (id: string) => boolean; onSaveItem?: (item: AuditFinding, attachments: EvidenceDraft[], creating: boolean) => string | null; auditAreas: ProjectArea[]; auditTypes: AuditDictionaryValue[]; onAreasChange: Dispatch<SetStateAction<ProjectArea[]>>; onTypesChange: Dispatch<SetStateAction<AuditDictionaryValue[]>>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string>; projectId: string; items: AuditFinding[]; onDeleteItem: (id: string) => string | null }
 const emptyFilters: AuditFilters = { search: '', area: '', type: '', severity: '', status: '', from: '', to: '' }

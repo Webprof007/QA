@@ -13,9 +13,6 @@ import { createTestRun, changeRunStatus, saveExecution, runCounts, executionResu
 import { testRunReport } from '@/lib/runReports'
 import { RunReport } from '@/components/run-reports/RunReport'
 import type { DefectsState, ProjectArea, TestCase, TestCaseDictionaryValue, TestPlan, TestRunsState } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
 import './TestRunsPage.css'
 const date = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
 type Props = { setup?: ProjectSetupState; suites?: TestSuitesState; initialRunId?: string; initialCreateSuiteId?: string; onViewSuite?: (id: string) => void; initialExecutionId?: string; defects: DefectsState; onCreateDefect: (executionId: string) => void; onViewDefect: (id: string) => void; onLinkDefect: (executionId: string, defectId: string) => string | null; projectId: string; userId?: number; data: TestRunsState; cases: TestCase[]; plans: TestPlan[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; onChange: Dispatch<SetStateAction<TestRunsState>> }

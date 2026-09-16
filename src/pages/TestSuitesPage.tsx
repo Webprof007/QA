@@ -9,9 +9,6 @@ import { moveItem } from '@/components/test-cases/testCaseOptions'
 import { testSuiteCases, nextTestSuiteCode, type TestSuiteInput } from '@/lib/testSuites'
 import { runCounts } from '@/lib/testRuns'
 import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestSuitesState, TestRunsState } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
 import './RequirementsPage.css'
 type Props = { projectId: string; data: TestSuitesState; cases: TestCase[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; runs: TestRunsState; initialId?: string; onSave: (input: TestSuiteInput) => string | null; onDelete: (id: string) => void; onCreateRun: (id: string) => void; onOpenRun: (id: string) => void }
 export function TestSuitesPage({ projectId, data, cases, areas, types, runs, initialId, onSave, onDelete, onCreateRun, onOpenRun }: Props) {

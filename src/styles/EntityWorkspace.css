@@ -29,6 +29,7 @@
 .tc-panel-actions, .tc-order { display: flex; gap: 8px; flex-wrap: wrap; }
 .tc-order { justify-content: flex-end; margin-top: 4px; }
 .tc-form section > button { justify-self: start; }
+
 @media (max-width: 1000px) {
   .tc-layout.tc-with-panel { grid-template-columns: minmax(0, 1fr); }
   .tc-panel { position: fixed; inset: 12dvh 0 0; max-height: 88dvh; z-index: 40; background: var(--background); border: 1px solid var(--border); padding: 20px; border-radius: 12px 12px 0 0; }

@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AuditFindingsPage, type AuditFindingsProps } from './AuditFindingsPage'
 import type { Audit, AuditCheck, AuditState } from '@/types'
-import '../App.css'
 import './AuditPage.css'
 
 type Props = Omit<AuditFindingsProps, 'auditId' | 'readOnly' | 'items' | 'onDeleteItem'> & {

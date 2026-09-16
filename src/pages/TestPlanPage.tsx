@@ -6,10 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { TestPlan } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
-import './Planning.css'
+import './TestPlanPage.css'
 
 const sections = [ ['objective', 'Objective'], ['scopeIn', 'In scope'], ['scopeOut', 'Out of scope'], ['environment', 'Test Environment'], ['entryCriteria', 'Entry Criteria'], ['exitCriteria', 'Exit Criteria'], ['risks', 'Risks'], ['notes', 'Notes'] ] as const
 export function TestPlanPage({ projectId, plans, onSave, onDelete }: { projectId: string; plans: TestPlan[]; onSave: (plan: TestPlan, creating: boolean) => Promise<TestPlan> | TestPlan; onDelete?: (id: string) => Promise<void> }) {

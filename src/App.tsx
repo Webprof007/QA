@@ -41,6 +41,9 @@ import { saveAudit, transitionAudit, saveAuditCheck, saveAuditFinding, removeAud
 import { initialAudits, initialAuditTypes } from '@/data/auditMockData'
 import type { AuditState, Checklist, ChecklistRun, TestPlan, TestRunsState, TestCasesProjectState, Page, Project } from '@/types'
 import './AppShell.css'
+import './App.css'
+import './styles/EntityWorkspace.css'
+import './styles/FormControls.css'
 import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
@@ -74,6 +77,8 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [logoutError, setLogoutError] = useState('')
   const [creatingProject, setCreatingProject] = useState(false)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
+  const [deletingProjectPending, setDeletingProjectPending] = useState(false)
+  const [deletingProjectError, setDeletingProjectError] = useState('')
   const [projectId, setProjectId] = useState('')
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projectDataLoading, setProjectDataLoading] = useState(false)
@@ -163,9 +168,14 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   }
 
   async function deleteProject() {
-    if (!deletingProject) return
+    if (!deletingProject || deletingProjectPending) return
     const id = deletingProject.id
-    try { await deleteProjectApi(id) } catch (error) { setBackendError(apiFailure(error)); return }
+    setDeletingProjectPending(true); setDeletingProjectError('')
+    try { await deleteProjectApi(id) } catch (error) {
+      const message = apiFailure(error)
+      setBackendError(message); setDeletingProjectError(message); setDeletingProjectPending(false)
+      return
+    }
     setEvidenceItems(current => current.filter(item => item.projectId !== id))
     setDefectRetests(current => current.filter(item => item.projectId !== id))
     setProjects(current => current.filter(item => item.id !== id))
@@ -187,7 +197,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       const nextId = availableProjects.find(item => item.id !== id)?.id ?? ''
       setProjectDataLoading(Boolean(nextId)); setProjectId(nextId)
     }
-    setDeletingProject(null)
+    setDeletingProject(null); setDeletingProjectPending(false); setDeletingProjectError('')
   }
 
   function changeTestCases(action: SetStateAction<TestCasesProjectState>) {
@@ -347,7 +357,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         page={page}
         onProjectChange={changeProject}
         onAddProject={() => setCreatingProject(true)}
-        onDeleteProject={() => setDeletingProject(project ?? null)}
+        onDeleteProject={() => { setDeletingProjectError(''); setDeletingProject(project ?? null) }}
         onNavigate={nextPage => { setFollowupTarget(current => ({ key: current.key + 1 })); setSuiteTarget(current => ({ key: current.key + 1 })); setDefectTarget(current => ({ key: current.key + 1 })); setExecutionTarget(current => ({ key: current.key + 1 })); setPage(nextPage) }}
       />
       <div className="app-content">
@@ -439,17 +449,19 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
           onClose={() => setCreatingProject(false)}
         />
       )}
-      <Dialog open={Boolean(deletingProject)} onOpenChange={open => { if (!open) setDeletingProject(null) }}>
+      <Dialog open={Boolean(deletingProject)} onOpenChange={open => { if (!open && !deletingProjectPending) { setDeletingProject(null); setDeletingProjectError('') } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Видалити проєкт «{deletingProject?.name}»?</DialogTitle>
+            <DialogTitle>Delete project “{deletingProject?.name}”?</DialogTitle>
             <DialogDescription>
-              Буде видалено всі тести, пункти підготовки, результати, зауваження Audit і чернетки цього проєкту для всіх користувачів. Цю дію неможливо скасувати.
+              All project data will be permanently deleted, including requirements, test cases, runs, defects, audits, attachments and related records.
+              <span className="project-delete-warning">This action cannot be undone.</span>
             </DialogDescription>
           </DialogHeader>
+          {deletingProjectError && <p role="alert" className="form-error">{deletingProjectError}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingProject(null)}>Скасувати</Button>
-            <Button variant="destructive" onClick={deleteProject}>Видалити проєкт</Button>
+            <Button variant="outline" disabled={deletingProjectPending} onClick={() => { setDeletingProject(null); setDeletingProjectError('') }}>Cancel</Button>
+            <Button variant="destructive" disabled={deletingProjectPending} onClick={() => void deleteProject()}>{deletingProjectPending ? 'Deleting…' : 'Delete permanently'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

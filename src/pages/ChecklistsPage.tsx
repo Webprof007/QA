@@ -9,10 +9,7 @@ import { ImportExportActions } from '@/components/import-export/ImportExportActi
 import { exportRows, validateChecklists } from '@/lib/importExport'
 import { ChecklistRunPanel } from '@/components/checklists/ChecklistRunPanel'
 import type { Checklist, ChecklistRun, ProjectArea } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
-import './Planning.css'
+import './ChecklistsPage.css'
 
 type Props = {
   projectId: string; items: Checklist[]; runs: ChecklistRun[]; areas: ProjectArea[]

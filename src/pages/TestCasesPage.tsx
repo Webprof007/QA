@@ -9,9 +9,6 @@ import { ImportExportActions } from '@/components/import-export/ImportExportActi
 import { exportRows, validateTestCases } from '@/lib/importExport'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import type { RequirementWithTestCases as Requirement, TestCase, TestCasesProjectState } from '@/types'
-import '../App.css'
-import './AuditPage.css'
-import './TestCasesPage.css'
 
 type Props = { onRequirementsChange?: (testCaseId: string, ids: string[]) => void; areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string>; onTypeSave?: (name: string, id?: string) => Promise<string>; onTypeRemove?: (id: string) => Promise<string> }
 export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data, onChange, requirements, onAreaSave, onAreaRemove, onTypeSave, onTypeRemove }: Props) {
