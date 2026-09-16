@@ -21,7 +21,7 @@ import type { Requirement, TestPlan } from '@/types'
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 const project = { id: 3, name: 'Voicli', description: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const area = { id: 7, projectId: 3, name: 'Authentication', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
-const requirement = { id: 11, projectId: 3, code: 'REQ-011', title: 'Login', description: null, areaId: 7, priority: 'high', status: 'approved', source: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
+const requirement = { id: 11, projectId: 3, code: 'REQ-011', title: 'Login', description: null, areaId: 7, priority: 'High', status: 'Approved', source: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const plan = { id: 12, projectId: 3, title: 'Release 2.6', version: '2.6', status: 'Active', objective: 'Regression', scopeIn: null, scopeOut: null, environment: 'Staging and Production', entryCriteria: null, exitCriteria: null, risks: null, startDate: null, endDate: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 
 beforeEach(() => vi.unstubAllGlobals())
@@ -75,12 +75,12 @@ describe('QA API boundary', () => {
       .mockResolvedValueOnce(json({ success: true, requirement: { ...requirement, title: 'Updated' } }))
       .mockResolvedValueOnce(json({ success: true }))
     vi.stubGlobal('fetch', fetch)
-    await expect(loadRequirements('3')).resolves.toEqual([expect.objectContaining({ id: '11', projectId: '3', areaId: '7', description: '' })])
+    await expect(loadRequirements('3')).resolves.toEqual([expect.objectContaining({ id: '11', projectId: '3', areaId: '7', description: '', priority: 'high', status: 'approved' })])
     await saveRequirement(input, true)
     await saveRequirement({ ...input, title: 'Updated' }, false)
     await deleteRequirement('3', '11')
-    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual(expect.objectContaining({ projectId: 3, areaId: 7, description: null, source: null, notes: null }))
-    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual(expect.objectContaining({ projectId: 3, id: 11, title: 'Updated' }))
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual(expect.objectContaining({ projectId: 3, areaId: 7, priority: 'High', status: 'Approved', description: null, source: null, notes: null }))
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual(expect.objectContaining({ projectId: 3, id: 11, title: 'Updated', priority: 'High', status: 'Approved' }))
     expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({ projectId: 3, id: 11 })
   })
 

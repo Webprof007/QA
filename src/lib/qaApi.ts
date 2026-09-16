@@ -16,12 +16,22 @@ export function backendId(value: string) {
 }
 const query = (projectId: string) => `?projectId=${encodeURIComponent(String(backendId(projectId)))}`
 const nullable = (value?: string) => value?.trim() ? value : null
+const requirementPriorities = ['critical', 'high', 'medium', 'low'] as const
+const requirementStatuses = ['draft', 'approved', 'deprecated'] as const
+function normalizeRequirementValue<T extends string>(value: string, supported: readonly T[], field: string): T {
+  const normalized = value.trim().toLowerCase()
+  const match = supported.find(option => option === normalized)
+  if (!match) throw new ApiError(`Backend повернув непідтримуваний Requirement ${field}: ${value}.`)
+  return match
+}
+const backendLabel = (value: string) => value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
 
 export const adaptProject = (value: BackendProject): Project => ({ id: id(value.id), name: value.name, description: value.description ?? '', createdByUserId: value.createdByUserId ?? undefined, createdAt: value.createdAt, updatedAt: value.updatedAt, userIds: [] })
 export const adaptArea = (value: BackendArea): ProjectArea => ({ id: id(value.id), projectId: id(value.projectId), name: value.name })
 export function adaptRequirement(value: BackendRequirement): Requirement {
-  if (!['critical', 'high', 'medium', 'low'].includes(value.priority) || !['draft', 'approved', 'deprecated'].includes(value.status)) throw new ApiError('Backend повернув непідтримуваний Requirement priority/status.')
-  return { id: id(value.id), projectId: id(value.projectId), code: value.code, title: value.title, description: value.description ?? '', areaId: value.areaId === null ? undefined : id(value.areaId), priority: value.priority as TestCase['priority'], status: value.status as Requirement['status'], source: value.source ?? '', notes: value.notes ?? '', createdAt: value.createdAt, updatedAt: value.updatedAt }
+  const priority = normalizeRequirementValue(value.priority, requirementPriorities, 'priority')
+  const status = normalizeRequirementValue(value.status, requirementStatuses, 'status')
+  return { id: id(value.id), projectId: id(value.projectId), code: value.code, title: value.title, description: value.description ?? '', areaId: value.areaId === null ? undefined : id(value.areaId), priority: priority as TestCase['priority'], status, source: value.source ?? '', notes: value.notes ?? '', createdAt: value.createdAt, updatedAt: value.updatedAt }
 }
 export function adaptTestPlan(value: BackendTestPlan): TestPlan {
   if (!['Draft', 'Active', 'Completed'].includes(value.status)) throw new ApiError('Backend повернув непідтримуваний Test Plan status.')
@@ -43,7 +53,7 @@ export async function saveArea(projectId: string, name: string, idValue?: string
 }
 export async function deleteArea(projectId: string, idValue: string) { await apiRequest('/project-areas/', { method: 'DELETE', body: { projectId: backendId(projectId), id: backendId(idValue) } }) }
 
-const requirementBody = (item: Requirement) => ({ projectId: backendId(item.projectId), code: item.code, title: item.title, description: nullable(item.description), areaId: item.areaId ? backendId(item.areaId) : null, priority: item.priority ?? 'medium', status: item.status, source: nullable(item.source), notes: nullable(item.notes) })
+const requirementBody = (item: Requirement) => ({ projectId: backendId(item.projectId), code: item.code, title: item.title, description: nullable(item.description), areaId: item.areaId ? backendId(item.areaId) : null, priority: backendLabel(item.priority ?? 'medium'), status: backendLabel(item.status), source: nullable(item.source), notes: nullable(item.notes) })
 export async function loadRequirements(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; requirements: BackendRequirement[] }>(`/requirements/${query(projectId)}`, { signal })).requirements.map(adaptRequirement) }
 export async function saveRequirement(item: Requirement, creating: boolean) {
   const values = requirementBody(item)
