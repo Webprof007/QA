@@ -5,7 +5,8 @@
 .tc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
 .import-export-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
 .tc-toolbar input { width: 260px; max-width: 100%; height: 32px; }
-.tc-add { margin-left: 0; }
+.tc-add { margin-left: 0; border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); font-weight: 600; }
+.tc-add:hover { border-color: var(--primary); background: color-mix(in oklab, var(--primary) 86%, var(--background)); color: var(--primary-foreground); }
 .table-delete-button { color: var(--destructive); }
 .table-delete-button:hover { color: var(--destructive); background: color-mix(in oklab, var(--destructive) 10%, transparent); }
 .tc-table { width: 100%; min-width: 720px; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
