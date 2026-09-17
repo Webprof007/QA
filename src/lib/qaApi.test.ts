@@ -3,26 +3,33 @@ import { ApiError } from './api'
 import {
   backendId,
   createProject,
+  createRequirementTestCaseLink,
   deleteArea,
   deleteProject,
   deleteRequirement,
+  deleteRequirementTestCaseLink,
+  deleteTestCase,
   loadAreas,
   loadProjects,
   loadRequirements,
+  loadRequirementTestCaseLinks,
+  loadTestCases,
   loadTestCaseTypes,
   loadTestPlans,
   saveArea,
   saveRequirement,
+  saveTestCase,
   saveTestCaseType,
   saveTestPlan,
 } from './qaApi'
-import type { Requirement, TestPlan } from '@/types'
+import type { Requirement, TestCase, TestPlan } from '@/types'
 
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 const project = { id: 3, name: 'Voicli', description: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const area = { id: 7, projectId: 3, name: 'Authentication', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const requirement = { id: 11, projectId: 3, code: 'REQ-011', title: 'Login', description: null, areaId: 7, priority: 'High', status: 'Approved', source: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const plan = { id: 12, projectId: 3, title: 'Release 2.6', version: '2.6', status: 'Active', objective: 'Regression', scopeIn: null, scopeOut: null, environment: 'Staging and Production', entryCriteria: null, exitCriteria: null, risks: null, startDate: null, endDate: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
+const testCase = { id: 21, projectId: 3, code: 'TC-021', title: 'Login', areaId: 7, typeId: 5, priority: 'high', status: 'active', preconditions: ['Account exists'], steps: [{ id: 91, action: 'Open login', expectedResult: 'Form opens', sortOrder: 0 }], postconditions: ['Sign out'], notes: null, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 
 beforeEach(() => vi.unstubAllGlobals())
 
@@ -117,6 +124,37 @@ describe('QA API boundary', () => {
     await saveTestCaseType('3', 'Functional')
     await saveTestCaseType('3', 'Regression', '5')
     expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ projectId: 3, id: 5, name: 'Regression' })
+  })
+
+  it('loads and mutates Test Cases while normalizing nested IDs only at the boundary', async () => {
+    const input: TestCase = { id: 'temp-id', projectId: '3', code: 'TC-021', title: 'Login', areaId: '7', typeId: '5', priority: 'high', status: 'active', preconditions: ['Account exists'], steps: [{ id: 'temporary-step', action: 'Open login', expectedResult: 'Form opens', sortOrder: 0 }], postconditions: ['Sign out'], notes: '', createdAt: '', updatedAt: '' }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(json({ success: true, testCases: [testCase] }))
+      .mockResolvedValueOnce(json({ success: true, testCase }, 201))
+      .mockResolvedValueOnce(json({ success: true, testCase: { ...testCase, title: 'Updated', steps: [{ ...testCase.steps[0], id: 92 }] } }))
+      .mockResolvedValueOnce(json({ success: true, deletedTestCaseId: 21 }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(loadTestCases('3')).resolves.toEqual([expect.objectContaining({ id: '21', projectId: '3', areaId: '7', typeId: '5', preconditions: ['Account exists'], steps: [{ id: '91', action: 'Open login', expectedResult: 'Form opens', sortOrder: 0 }], postconditions: ['Sign out'], notes: '' })])
+    await expect(saveTestCase(input, true)).resolves.toEqual(expect.objectContaining({ id: '21', steps: [expect.objectContaining({ id: '91' })] }))
+    await expect(saveTestCase({ ...input, id: '21', title: 'Updated' }, false)).resolves.toEqual(expect.objectContaining({ title: 'Updated', steps: [expect.objectContaining({ id: '92' })] }))
+    await expect(deleteTestCase('3', '21')).resolves.toBe('21')
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual(expect.objectContaining({ projectId: 3, areaId: 7, typeId: 5, steps: [{ action: 'Open login', expectedResult: 'Form opens', sortOrder: 0 }], notes: null }))
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual(expect.objectContaining({ projectId: 3, id: 21, title: 'Updated' }))
+    expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({ projectId: 3, id: 21 })
+  })
+
+  it('loads, creates and removes Requirement ↔ Test Case ID links', async () => {
+    const link = { projectId: '3', requirementId: '11', testCaseId: '21' }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(json({ success: true, links: [{ projectId: 3, requirementId: 11, testCaseId: 21, createdAt: '' }] }))
+      .mockResolvedValueOnce(json({ success: true }))
+      .mockResolvedValueOnce(json({ success: true }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(loadRequirementTestCaseLinks('3')).resolves.toEqual([link])
+    await createRequirementTestCaseLink(link)
+    await deleteRequirementTestCaseLink(link)
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ projectId: 3, requirementId: 11, testCaseId: 21 })
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ projectId: 3, requirementId: 11, testCaseId: 21 })
   })
 
   it('recognizes 401 as an API error for the existing auth flow', async () => {

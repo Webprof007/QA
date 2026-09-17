@@ -16,7 +16,7 @@ Reviewed against the frontend on 2026-09-16. This document records current owner
 | Environment / Release / Build | `projectSetup.environments` / `.releases` / `.builds` in QAApp; shared project-level catalogs, technical IDs separate from names/versions. |
 | Requirement | API-backed `requirementsByProject[id].items`; one live definition. Optional Priority reuses the current Test Case priority values; it is not Defect priority. |
 | TestPlan | API-backed `testPlans[]`; many plans per project, planning documents, not implicit containers of Test Cases. |
-| TestCase | Local `testCasesByProject[id].items`; central live definition with technical ID, display code and structured steps. Its Test Case Type dictionary is API-backed for the selected project. |
+| TestCase | API-backed `testCasesByProject[id].items`; central live definition with technical ID, display code and structured steps. Test Case Types are also API-backed for the selected project. |
 | TestSuite | `testSuites.suites`; reusable definitions with ordered central Test Case ID links in `testSuites.links`. |
 | TestRun / TestExecution | `testRunData.runs` / `.executions`; executions reference a case and contain its historical snapshot. |
 | Defect | `defects.items`; independent editable product issue, including its own copied incident context. |
@@ -115,14 +115,16 @@ Renaming an Area updates all live views by ID. Deletion is blocked while used by
 
 `lib/api.ts` is the one HTTP client and uses `VITE_API_URL`, session-cookie
 credentials and the backend error contract. `lib/qaApi.ts` is the domain adapter
-for Projects, Project Areas, Requirements, Test Plans and Test Case Types. Numeric
+for Projects, Project Areas, Requirements, Test Plans, Test Cases, Test Case Types
+and Requirement ↔ Test Case links. Numeric
 backend IDs are converted to the frontend string ID type at this boundary and are
 converted back only when building requests. A failed mutation never creates or
 changes the corresponding local cache record. A 401 delegates to the existing
 auth/session refresh flow.
 
 After authentication, Projects load first. Selecting a Project loads its Areas,
-Requirements, Test Plans and Test Case Types independently as one project-scoped
+Requirements, Test Plans, Test Cases, Test Case Types and Requirement ↔ Test Case
+links independently as one project-scoped
 batch. Their old demo seeds are not fallback data. Existing data is retained while
 an error is shown, and responses for an abandoned Project selection are ignored.
 Project edit is not implemented because the current backend has no update endpoint.
@@ -139,12 +141,11 @@ Release and Build management uses the existing shared `projectSetup` state and
 remains frontend/session-only. The Danger Zone invokes the existing confirmed
 Project deletion flow.
 
-Test Cases, Test Suites, Checklists/Runs, Smoke, Test Runs/Executions, Defects/
-Retests, Audit, Evidence, Environment/Release/Build and derived Reports remain
-frontend-only. Their domain rules and ID relations are unchanged. Requirement CSV/
-XLSX import validates in the browser, then creates each accepted Requirement through
-the same API mutation path and reports partial failures. Test Case and Checklist
-imports remain local because those entities do not yet have connected endpoints.
+Test Suites, Checklists/Runs, Smoke, Test Runs/Executions, Defects/Retests, Audit,
+Evidence, Environment/Release/Build and derived Reports remain frontend-only. Their
+domain rules and ID relations are unchanged. Requirement and Test Case CSV/XLSX
+imports validate in the browser, then create each accepted definition through the
+same API mutation path and report partial failures. Checklist imports remain local.
 
 ## Snapshot rule
 

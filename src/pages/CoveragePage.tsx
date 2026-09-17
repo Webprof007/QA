@@ -15,13 +15,14 @@ import './CoveragePage.css'
 type Props = {
   projectId: string; requirements: Requirement[]; cases: TestCase[]; links: RequirementTestCaseLink[]
   areas: ProjectArea[]; types: TestCaseDictionaryValue[]; executions: TestExecution[]
-  onLinksChange: (direction: 'requirement' | 'testCase', id: string, ids: string[]) => void
+  onLinksChange: (direction: 'requirement' | 'testCase', id: string, ids: string[]) => void | Promise<void>
 }
 export function CoveragePage({ projectId, requirements, cases, links, areas, types, executions, onLinksChange }: Props) {
   const [view, setView] = useState<'requirement' | 'testCase'>('requirement')
   const [filters, setFilters] = useState(emptyCoverageFilters)
   const [selectedId, setSelectedId] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [error, setError] = useState('')
   const items = requirementsWithLinks(projectId, requirements, cases, links)
   const availableCases = cases.filter(item => item.projectId === projectId)
   const availableAreas = areas.filter(item => item.projectId === projectId)
@@ -39,7 +40,12 @@ export function CoveragePage({ projectId, requirements, cases, links, areas, typ
   const priorityName = (value?: string) => priorities.find(item => item.value === value)?.label || '—'
   const header = (key: 'areaId' | 'priority' | 'status' | 'coverage', label: string, options: { value: string; label: string }[]) =>
     <ColumnFilter label={label} value={filters[key]} options={options} onChange={value => setFilters(current => ({ ...current, [key]: value }))} />
-  const saveLinks = (ids: string[]) => { if (selected) onLinksChange(view, selected.id, ids); setPickerOpen(false) }
+  async function saveLinks(ids: string[]) {
+    if (!selected) return
+    setError('')
+    try { await onLinksChange(view, selected.id, ids); setPickerOpen(false) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Не вдалося змінити зв’язки.') }
+  }
   return <main className="smoke-app coverage-page">
     <header className="page-heading"><h1>Coverage</h1></header>
     <div className="tc-toolbar" role="group" aria-label="Coverage view">
@@ -47,6 +53,7 @@ export function CoveragePage({ projectId, requirements, cases, links, areas, typ
       <Button variant={view === 'testCase' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === 'testCase'} onClick={() => { setView('testCase'); setSelectedId(''); setFilters(emptyCoverageFilters); setPickerOpen(false) }}>Traceability / Простежуваність</Button>
     </div>
     <p className="coverage-summary muted" aria-label="Coverage summary">Requirements: {summary.total} · Covered: {summary.covered} · Uncovered: {summary.uncovered} · Coverage: {summary.percentage}%</p>
+    {error && <p role="alert" className="form-error">{error}</p>}
     <div className={`tc-layout ${selected ? 'tc-with-panel' : ''}`}>
       <section className="tc-list" aria-label="Coverage list">
         <div className="tc-toolbar"><Input aria-label="Search by ID or title" placeholder="Search by ID or title..." value={filters.search} onChange={event => setFilters(current => ({ ...current, search: event.target.value }))} />
@@ -78,10 +85,10 @@ export function CoveragePage({ projectId, requirements, cases, links, areas, typ
             {view === 'requirement' ? <>
               {selectedCases.length ? <table className="tc-table" aria-label="Linked Test Cases"><thead><tr><th>ID / Title</th><th>Area / Priority</th><th>Type / Status</th><th>Latest Result</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{selectedCases.map(item => <tr key={item.id}>
                 <td><span className="test-id">{item.code}</span><br />{item.title}</td><td>{areaName(item.areaId)}<br />{priorityName(item.priority)}</td><td>{availableTypes.find(type => type.id === item.typeId)?.name || '—'}<br />{item.status}</td><td>{latestExecutionResult(projectId, item.id, executions)}</td>
-                <td><Button variant="ghost" size="icon" aria-label={`Unlink ${item.code}`} onClick={() => saveLinks(selectedCases.filter(value => value.id !== item.id).map(value => value.id))}><X /></Button></td>
+                <td><Button variant="ghost" size="icon" aria-label={`Unlink ${item.code}`} onClick={() => void saveLinks(selectedCases.filter(value => value.id !== item.id).map(value => value.id))}><X /></Button></td>
               </tr>)}</tbody></table> : <p className="muted">No linked test cases</p>}
             </> : <>
-              {linkedRequirements(selected.id).length ? <ul className="req-linked-list">{linkedRequirements(selected.id).map(item => <li key={item.id}><span><span className="test-id">{item.code}</span> — {item.title}</span><Button variant="ghost" size="icon" aria-label={`Unlink ${item.code}`} onClick={() => saveLinks(linkedRequirements(selected.id).filter(value => value.id !== item.id).map(value => value.id))}><X /></Button></li>)}</ul> : <p className="muted">No requirement</p>}
+              {linkedRequirements(selected.id).length ? <ul className="req-linked-list">{linkedRequirements(selected.id).map(item => <li key={item.id}><span><span className="test-id">{item.code}</span> — {item.title}</span><Button variant="ghost" size="icon" aria-label={`Unlink ${item.code}`} onClick={() => void saveLinks(linkedRequirements(selected.id).filter(value => value.id !== item.id).map(value => value.id))}><X /></Button></li>)}</ul> : <p className="muted">No requirement</p>}
             </>}
             <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>{view === 'requirement' ? 'Link Test Cases' : 'Manage Requirements'}</Button>
           </section>
@@ -89,7 +96,7 @@ export function CoveragePage({ projectId, requirements, cases, links, areas, typ
       </aside>}
     </div>
     {pickerOpen && selected && (view === 'requirement'
-      ? <TestCaseLinkPicker testCases={availableCases} areas={availableAreas} types={availableTypes} selectedIds={selectedCases.map(item => item.id)} onApply={saveLinks} onClose={() => setPickerOpen(false)} />
-      : <EntityLinkPicker kind="requirements" testCases={items.map(item => ({ ...item, area: areaName(item.areaId) }))} selectedIds={linkedRequirements(selected.id).map(item => item.id)} onApply={saveLinks} onClose={() => setPickerOpen(false)} />)}
+      ? <TestCaseLinkPicker testCases={availableCases} areas={availableAreas} types={availableTypes} selectedIds={selectedCases.map(item => item.id)} onApply={ids => void saveLinks(ids)} onClose={() => setPickerOpen(false)} />
+      : <EntityLinkPicker kind="requirements" testCases={items.map(item => ({ ...item, area: areaName(item.areaId) }))} selectedIds={linkedRequirements(selected.id).map(item => item.id)} onApply={ids => void saveLinks(ids)} onClose={() => setPickerOpen(false)} />)}
   </main>
 }

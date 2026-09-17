@@ -10,8 +10,7 @@ import { saveTestSuite, deleteTestSuite } from '@/lib/testSuites'
 import { createSmokeMockData } from '@/data/smokeMockData'
 import { saveChecklistRun } from '@/lib/checklists'
 import { CoveragePage } from '@/pages/CoveragePage'
-import { requirementsWithLinks, replaceCoverageLinks, validCoverageLinks } from '@/lib/coverage'
-import { initialRequirementTestCaseLinks } from '@/data/requirementsMockData'
+import { requirementsWithLinks, replaceCoverageLinks } from '@/lib/coverage'
 import type { RequirementsViewState } from '@/types'
 import { DefectsPage } from '@/pages/DefectsPage'
 import { createDefectsMockData } from '@/data/defectsMockData'
@@ -48,7 +47,7 @@ import './styles/FormControls.css'
 import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
-import { createProject as createProjectApi, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, loadAreas, loadProjects, loadRequirements, loadTestCaseTypes, loadTestPlans, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCaseType, saveTestPlan as saveTestPlanApi } from '@/lib/qaApi'
+import { createProject as createProjectApi, createRequirementTestCaseLink, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteRequirementTestCaseLink, deleteTestCase as deleteTestCaseApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, loadAreas, loadProjects, loadRequirementTestCaseLinks, loadRequirements, loadTestCases, loadTestCaseTypes, loadTestPlans, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCase as saveTestCaseApi, saveTestCaseType, saveTestPlan as saveTestPlanApi } from '@/lib/qaApi'
 
 function lastPageFor(userId: number, projectKey: string): Page {
   try {
@@ -114,9 +113,9 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [checklists, setChecklists] = useState<Checklist[]>([])
   const [checklistRuns, setChecklistRuns] = useState<ChecklistRun[]>([])
   const [auditTypes, setAuditTypes] = useState(initialAuditTypes)
-  const [requirementLinks, setRequirementLinks] = useState(initialRequirementTestCaseLinks)
+  const [requirementLinks, setRequirementLinks] = useState<import('@/types').RequirementTestCaseLink[]>([])
   const [requirementsByProject, setRequirementsByProject] = useState<Record<string, { items: import('@/types').Requirement[] }>>({})
-  const [testCasesByProject, setTestCasesByProject] = useState(seed.testCases)
+  const [testCasesByProject, setTestCasesByProject] = useState<Record<string, Pick<TestCasesProjectState, 'items' | 'types'>>>({})
   const [auditData, setAuditData] = useState<AuditState>(() => ({ audits: structuredClone(initialAudits), checks: [], findings: Object.values(seed.audit).flat() }))
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([])
   const [evidenceUrls] = useState(createEvidenceUrls)
@@ -168,14 +167,15 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   useEffect(() => {
     if (!projectId) return
     const controller = new AbortController(), selectedProjectId = projectId
-    void Promise.allSettled([loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal)])
-      .then(([areas, requirements, plans, types]) => {
+    void Promise.allSettled([loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal), loadTestCases(selectedProjectId, controller.signal), loadRequirementTestCaseLinks(selectedProjectId, controller.signal)])
+      .then(([areas, requirements, plans, types, cases, links]) => {
         if (controller.signal.aborted) return
         if (areas.status === 'fulfilled') setProjectAreas(current => [...current.filter(item => item.projectId !== selectedProjectId), ...areas.value])
         if (requirements.status === 'fulfilled') setRequirementsByProject(current => ({ ...current, [selectedProjectId]: { items: requirements.value } }))
         if (plans.status === 'fulfilled') setTestPlans(current => [...current.filter(item => item.projectId !== selectedProjectId), ...plans.value])
-        if (types.status === 'fulfilled') setTestCasesByProject(current => ({ ...current, [selectedProjectId]: { items: current[selectedProjectId]?.items ?? [], types: types.value } }))
-        const failure = [areas, requirements, plans, types].find(result => result.status === 'rejected')
+        if (types.status === 'fulfilled' || cases.status === 'fulfilled') setTestCasesByProject(current => ({ ...current, [selectedProjectId]: { items: cases.status === 'fulfilled' ? cases.value : current[selectedProjectId]?.items ?? [], types: types.status === 'fulfilled' ? types.value : current[selectedProjectId]?.types ?? [] } }))
+        if (links.status === 'fulfilled') setRequirementLinks(current => [...current.filter(link => link.projectId !== selectedProjectId), ...links.value])
+        const failure = [areas, requirements, plans, types, cases, links].find(result => result.status === 'rejected')
         setBackendError(failure?.status === 'rejected' ? apiFailure(failure.reason) : '')
       })
       .finally(() => { if (!controller.signal.aborted) setProjectDataLoading(false) })
@@ -256,11 +256,24 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       return definition
     })
     setRequirementsByProject(current => ({ ...current, [projectId]: { items } }))
-    const links = next.items.flatMap(item => item.testCaseIds.map(testCaseId => ({ projectId: item.projectId, requirementId: item.id, testCaseId })))
-    setRequirementLinks(current => [...current.filter(link => link.projectId !== projectId), ...validCoverageLinks(projectId, links, items, testCasesByProject[projectId]?.items ?? [])])
   }
-  function changeCoverage(direction: 'requirement' | 'testCase', id: string, selectedIds: string[]) {
-    setRequirementLinks(current => replaceCoverageLinks(current, projectId, direction, id, selectedIds, requirementsByProject[projectId]?.items ?? [], testCasesByProject[projectId]?.items ?? []))
+  async function changeCoverage(direction: 'requirement' | 'testCase', id: string, selectedIds: string[]) {
+    const currentProjectLinks = requirementLinks.filter(link => link.projectId === projectId)
+    const desired = replaceCoverageLinks(requirementLinks, projectId, direction, id, selectedIds, requirementsByProject[projectId]?.items ?? [], testCasesByProject[projectId]?.items ?? []).filter(link => link.projectId === projectId)
+    const key = (link: import('@/types').RequirementTestCaseLink) => `${link.requirementId}:${link.testCaseId}`
+    const currentKeys = new Set(currentProjectLinks.map(key)), desiredKeys = new Set(desired.map(key))
+    const additions = desired.filter(link => !currentKeys.has(key(link)))
+    const removals = currentProjectLinks.filter(link => !desiredKeys.has(key(link)))
+    try {
+      await Promise.all([...additions.map(createRequirementTestCaseLink), ...removals.map(deleteRequirementTestCaseLink)])
+      setRequirementLinks(current => [...current.filter(link => link.projectId !== projectId), ...desired])
+    } catch (error) {
+      try {
+        const reloaded = await loadRequirementTestCaseLinks(projectId)
+        setRequirementLinks(current => [...current.filter(link => link.projectId !== projectId), ...reloaded])
+      } catch { /* keep the last known cache if reconciliation also fails */ }
+      throw new Error(apiFailure(error), { cause: error })
+    }
   }
 
   function areaInUse(id: string) {
@@ -318,6 +331,25 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       catch (error) { failures.push(`Row ${index + 1}: ${apiFailure(error)}`) }
     }
     if (saved.length) setRequirementsByProject(current => ({ ...current, [projectId]: { items: [...(current[projectId]?.items ?? []), ...saved] } }))
+    if (failures.length) throw new Error(`Imported ${saved.length} of ${items.length}. ${failures.join(' ')}`)
+  }
+  async function saveTestCaseRemote(item: import('@/types').TestCase, creating: boolean) {
+    try { return await saveTestCaseApi({ ...item, projectId }, creating) }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function deleteTestCaseRemote(id: string) {
+    try {
+      await deleteTestCaseApi(projectId, id)
+      setRequirementLinks(current => current.filter(link => link.projectId !== projectId || link.testCaseId !== id))
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function importTestCases(items: import('@/types').TestCase[]) {
+    const saved: import('@/types').TestCase[] = [], failures: string[] = []
+    for (const [index, item] of items.entries()) {
+      try { saved.push(await saveTestCaseApi({ ...item, projectId }, true)) }
+      catch (error) { failures.push(`Row ${index + 1}: ${apiFailure(error)}`) }
+    }
+    if (saved.length) setTestCasesByProject(current => ({ ...current, [projectId]: { items: [...(current[projectId]?.items ?? []), ...saved], types: current[projectId]?.types ?? [] } }))
     if (failures.length) throw new Error(`Imported ${saved.length} of ${items.length}. ${failures.join(' ')}`)
   }
   async function savePlan(plan: TestPlan, creating: boolean) {
@@ -445,9 +477,9 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
             if (item.projectId === project.id) setChecklists(current => current.some(value => value.id === item.id && value.projectId === project.id) ? current.map(value => value.id === item.id && value.projectId === project.id ? item : value) : [...current, item])
           }} />
         ) : page === 'Test Cases' && project ? (
-          <TestCasesPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={{ ...(testCasesByProject[project.id] ?? emptyTestCasesProject()), areas: projectAreas.filter(area => area.projectId === project.id) }} requirements={requirementView().items} onRequirementsChange={(id, ids) => changeCoverage('testCase', id, ids)} onChange={changeTestCases} onAreaSave={saveArea} onAreaRemove={removeArea} onTypeSave={saveType} onTypeRemove={removeType} />
+          <TestCasesPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={{ ...(testCasesByProject[project.id] ?? emptyTestCasesProject()), areas: projectAreas.filter(area => area.projectId === project.id) }} requirements={requirementView().items} onRequirementsChange={(id, ids) => changeCoverage('testCase', id, ids)} onChange={changeTestCases} onSaveItem={saveTestCaseRemote} onDeleteItem={deleteTestCaseRemote} onImportItems={importTestCases} onAreaSave={saveArea} onAreaRemove={removeArea} onTypeSave={saveType} onTypeRemove={removeType} />
         ) : page === 'Requirements' && project ? (
-          <RequirementsPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={requirementView()} types={testCasesByProject[project.id]?.types ?? []} testCases={testCasesByProject[project.id]?.items ?? []} onChange={changeRequirements} onSaveItem={saveRequirementRemote} onDeleteItem={deleteRequirementRemote} onImportItems={importRequirements} onAreaSave={saveArea} onAreaRemove={removeArea} />
+          <RequirementsPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={requirementView()} types={testCasesByProject[project.id]?.types ?? []} testCases={testCasesByProject[project.id]?.items ?? []} onChange={changeRequirements} onSaveItem={saveRequirementRemote} onDeleteItem={deleteRequirementRemote} onImportItems={importRequirements} onTestCasesChange={(id, ids) => changeCoverage('requirement', id, ids)} onAreaSave={saveArea} onAreaRemove={removeArea} />
         ) : page === 'Audit' && project ? (
           <AuditPage initialFindingId={followupTarget.source?.type === "auditFinding" ? followupTarget.source.id : undefined} key={project.id + followupTarget.key} projectId={project.id} data={auditData}
             areaInUse={areaInUse} auditAreas={projectAreas} auditTypes={auditTypes} onAreasChange={setProjectAreas} onTypesChange={setAuditTypes} onAreaSave={saveArea} onAreaRemove={removeArea}

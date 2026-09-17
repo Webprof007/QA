@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import App from './App'
 
@@ -10,7 +10,12 @@ const projects = [
   { id: 4, name: 'Beta', description: null, createdByUserId: 42, createdAt: '', updatedAt: '' },
 ]
 const requirement = (projectId: number) => ({ id: projectId * 10, projectId, code: `REQ-${projectId}`, title: `Requirement ${projectId}`, description: null, areaId: null, priority: 'medium', status: 'draft', source: null, notes: null, createdByUserId: 42, createdAt: '', updatedAt: '' })
+const testCase = (projectId: number) => ({ id: projectId * 10 + 1, projectId, code: `TC-${projectId}`, title: `Test Case ${projectId}`, areaId: null, typeId: null, priority: 'medium', status: 'active', preconditions: [`Precondition ${projectId}`], steps: [{ id: projectId * 100, action: `Action ${projectId}`, expectedResult: `Expected ${projectId}`, sortOrder: 0 }], postconditions: [`Postcondition ${projectId}`], notes: null, createdAt: '', updatedAt: '' })
 
+beforeEach(() => {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: { get length() { return values.size }, clear: () => values.clear(), getItem: (key: string) => values.get(key) ?? null, key: (index: number) => [...values.keys()][index] ?? null, removeItem: (key: string) => { values.delete(key) }, setItem: (key: string, value: string) => { values.set(key, String(value)) } } satisfies Storage })
+})
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 function apiFetch(options?: { requirementMutationError?: boolean }) {
@@ -23,6 +28,8 @@ function apiFetch(options?: { requirementMutationError?: boolean }) {
     if (url.includes('/project-areas/')) return json({ success: true, areas: [] })
     if (url.includes('/test-plans/')) return json({ success: true, testPlans: [] })
     if (url.includes('/test-case-types/')) return json({ success: true, types: [] })
+    if (url.includes('/requirement-test-cases/')) return json({ success: true, links: [{ projectId, requirementId: projectId * 10, testCaseId: projectId * 10 + 1, createdAt: '' }] })
+    if (url.includes('/test-cases/')) return json({ success: true, testCases: [testCase(projectId)] })
     if (url.includes('/requirements/')) {
       if (init?.method === 'POST' && options?.requirementMutationError) return json({ success: false, message: 'Requirement rejected', errors: { title: 'Invalid' } }, 422)
       return json({ success: true, requirements: [requirement(projectId)] })
@@ -43,10 +50,32 @@ it('loads backend-backed project data and replaces it when Project changes', asy
   fireEvent.keyDown(screen.getByRole('button', { name: 'Project: Alpha' }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Beta' }))
   expect(await screen.findByRole('button', { name: 'Project: Beta' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Requirements / Вимоги' }))
   expect(await screen.findByRole('button', { name: 'Open REQ-4' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Open REQ-3' })).toBeNull()
 
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('/requirements/?projectId=4'))).toBe(true))
+})
+
+it('loads API-backed Test Cases and Requirement links with project isolation', async () => {
+  vi.stubGlobal('fetch', apiFetch())
+  render(<App />)
+  await screen.findByRole('button', { name: 'Project: Alpha' })
+  fireEvent.click(screen.getByRole('button', { name: 'Test Cases / Тест-кейси' }))
+  expect(await screen.findByRole('button', { name: 'Open TC-3' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Open TC-3' }))
+  expect(screen.getByText('Precondition 3')).toBeTruthy()
+  expect(screen.getByText('Action 3')).toBeTruthy()
+  expect(screen.getByText('Expected 3')).toBeTruthy()
+  expect(screen.getByText('Postcondition 3')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Coverage / Покриття' }))
+  expect(await screen.findByText('Covered')).toBeTruthy()
+  const trigger = screen.getByRole('button', { name: 'Project: Alpha' })
+  fireEvent.keyDown(trigger, { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Beta' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Test Cases / Тест-кейси' }))
+  expect(await screen.findByRole('button', { name: 'Open TC-4' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Open TC-3' })).toBeNull()
 })
 
 it('opens Settings for a newly created backend Project and loads its scoped resources', async () => {
@@ -60,7 +89,6 @@ it('opens Settings for a newly created backend Project and loads its scoped reso
   fireEvent.click(screen.getByRole('button', { name: 'Створити проєкт' }))
   expect(await screen.findByRole('heading', { name: 'Settings / Налаштування' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Project: Gamma' })).toBeTruthy()
-  expect(screen.getByText('Gamma')).toBeTruthy()
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('/project-areas/?projectId=5'))).toBe(true))
 })
 

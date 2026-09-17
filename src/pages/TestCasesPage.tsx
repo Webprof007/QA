@@ -10,8 +10,8 @@ import { exportRows, validateTestCases } from '@/lib/importExport'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import type { RequirementWithTestCases as Requirement, TestCase, TestCasesProjectState } from '@/types'
 
-type Props = { onRequirementsChange?: (testCaseId: string, ids: string[]) => void; areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string>; onTypeSave?: (name: string, id?: string) => Promise<string>; onTypeRemove?: (id: string) => Promise<string> }
-export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data, onChange, requirements, onAreaSave, onAreaRemove, onTypeSave, onTypeRemove }: Props) {
+type Props = { onRequirementsChange?: (testCaseId: string, ids: string[]) => Promise<void>; areaInUse?: (id: string) => boolean; requirements: Requirement[]; projectId: string; data: TestCasesProjectState; onChange: Dispatch<SetStateAction<TestCasesProjectState>>; onSaveItem?: (item: TestCase, creating: boolean) => Promise<TestCase>; onDeleteItem?: (id: string) => Promise<void>; onImportItems?: (items: TestCase[]) => Promise<void>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string>; onTypeSave?: (name: string, id?: string) => Promise<string>; onTypeRemove?: (id: string) => Promise<string> }
+export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data, onChange, requirements, onSaveItem, onDeleteItem, onImportItems, onAreaSave, onAreaRemove, onTypeSave, onTypeRemove }: Props) {
   const [filters, setFilters] = useState<CaseFilters>({ search: '', areaId: '', typeId: '', priority: '', status: '' })
   const [sort, setSort] = useState<CaseSort>({ key: 'code', direction: 'asc' })
   const [selectedId, setSelectedId] = useState('')
@@ -43,21 +43,26 @@ export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data
     if (!code || !draft.title.trim()) { setError('Enter a code and title.'); return }
     if (items.some(item => item.id !== draft.id && item.code.toLowerCase() === code.toLowerCase())) { setError('This code already exists in this project.'); return }
     if (draft.steps.some(step => !richTextPlain(step.action).trim() || !richTextPlain(step.expectedResult).trim())) { setError('Complete Action and Expected for each step.'); return }
-    const saved: TestCase = {
+    const input: TestCase = {
       ...draft, projectId, code, title: draft.title.trim(),
       preconditions: draft.preconditions.map(value => value.trim()).filter(Boolean),
       postconditions: draft.postconditions?.map(value => value.trim()).filter(Boolean),
       steps: [...draft.steps].sort((a, b) => a.sortOrder - b.sortOrder).map((step, sortOrder) => ({ ...step, action: step.action.trim(), expectedResult: step.expectedResult.trim(), sortOrder })),
       updatedAt: new Date().toISOString(),
     }
-    onChange(current => ({ ...current, items: mode === 'create' ? [...current.items, saved] : current.items.map(item => item.id === saved.id ? saved : item) }))
-    setSelectedId(saved.id); setDraft(null); setMode('view'); setError('')
+    const commit = (saved: TestCase) => {
+      onChange(current => ({ ...current, items: mode === 'create' ? [...current.items.filter(item => item.id !== saved.id), saved] : current.items.map(item => item.id === saved.id ? saved : item) }))
+      setSelectedId(saved.id); setDraft(null); setMode('view'); setError('')
+    }
+    if (!onSaveItem) { commit(input); return }
+    void onSaveItem(input, mode === 'create').then(commit).catch(reason => setError(reason instanceof Error ? reason.message : 'Не вдалося зберегти Test Case.'))
   }
   function remove() {
     if (!deleting) return
-    onChange(current => ({ ...current, items: current.items.filter(item => item.id !== deleting.id) }))
-    if (selectedId === deleting.id) close()
-    setDeleting(null)
+    const id = deleting.id
+    const commit = () => { onChange(current => ({ ...current, items: current.items.filter(item => item.id !== id) })); if (selectedId === id) close(); setDeleting(null); setError('') }
+    if (!onDeleteItem) { commit(); return }
+    void onDeleteItem(id).then(commit).catch(reason => setError(reason instanceof Error ? reason.message : 'Не вдалося видалити Test Case.'))
   }
   const dictionary = {
     area: areas, type: types,
@@ -104,9 +109,9 @@ export function TestCasesPage({ onRequirementsChange, areaInUse, projectId, data
     <header className="page-heading"><h1>Test Cases</h1></header>
     <div className={`tc-layout ${active ? 'tc-with-panel' : ''}`}>
       <TestCaseTable items={visible} areas={areas} types={types} selectedId={selectedId} filters={filters} sort={sort} onFilters={setFilters} onSort={setSort} onOpen={item => open(item)} onEdit={item => open(item, true)} onDelete={setDeleting} onAdd={add}
-        importExportActions={<ImportExportActions kind="testCases" validate={(rows, mapping) => validateTestCases(rows, mapping, { projectId, areas, types, existing: items })} onImport={imported => onChange(current => ({ ...current, items: [...current.items, ...imported] }))} exportRows={exportRows('testCases', { testCases: items, areas, types })} />} />
-      {active && <TestCasePanel allRequirements={requirements} onRequirementsChange={onRequirementsChange ? ids => onRequirementsChange(active.id, ids) : undefined} requirements={requirements.filter(item => item.projectId === projectId && item.testCaseIds.includes(active.id))} key={active.id} item={active} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
+        importExportActions={<ImportExportActions kind="testCases" validate={(rows, mapping) => validateTestCases(rows, mapping, { projectId, areas, types, existing: items })} onImport={async imported => { if (onImportItems) await onImportItems(imported); else onChange(current => ({ ...current, items: [...current.items, ...imported] })) }} exportRows={exportRows('testCases', { testCases: items, areas, types })} />} />
+      {active && <TestCasePanel allRequirements={requirements} onRequirementsChange={onRequirementsChange ? ids => { setError(''); return onRequirementsChange(active.id, ids).catch(reason => { setError(reason instanceof Error ? reason.message : 'Не вдалося змінити зв’язки.') }) } : undefined} requirements={requirements.filter(item => item.projectId === projectId && item.testCaseIds.includes(active.id))} key={active.id} item={active} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
     </div>
-    <Dialog open={Boolean(deleting)} onOpenChange={value => { if (!value) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Delete {deleting?.code}?</DialogTitle><DialogDescription>This test case will be removed from the current project.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={remove}>Delete test case</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={Boolean(deleting)} onOpenChange={value => { if (!value) { setDeleting(null); setError('') } }}><DialogContent><DialogHeader><DialogTitle>Delete {deleting?.code}?</DialogTitle><DialogDescription>This test case will be removed from the current project.</DialogDescription></DialogHeader>{error && <p role="alert" className="form-error">{error}</p>}<DialogFooter><Button variant="outline" onClick={() => { setDeleting(null); setError('') }}>Cancel</Button><Button variant="destructive" onClick={remove}>Delete test case</Button></DialogFooter></DialogContent></Dialog>
   </main></DictionaryContext.Provider>
 }

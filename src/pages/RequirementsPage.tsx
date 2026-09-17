@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import type { RequirementWithTestCases as Requirement, RequirementsViewState as RequirementsProjectState, TestCase } from '@/types'
 import './RequirementsPage.css'
 
-type Props = { types?: import('@/types').TestCaseDictionaryValue[]; areaInUse?: (id: string) => boolean; projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>>; onSaveItem?: (item: Requirement, creating: boolean) => Promise<Requirement>; onDeleteItem?: (id: string) => Promise<void>; onImportItems?: (items: Requirement[]) => Promise<void>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string> }
-export function RequirementsPage({ types = [], areaInUse, projectId, data, testCases, onChange, onSaveItem, onDeleteItem, onImportItems, onAreaSave, onAreaRemove }: Props) {
+type Props = { types?: import('@/types').TestCaseDictionaryValue[]; areaInUse?: (id: string) => boolean; projectId: string; data: RequirementsProjectState; testCases: TestCase[]; onChange: Dispatch<SetStateAction<RequirementsProjectState>>; onSaveItem?: (item: Requirement, creating: boolean) => Promise<Requirement>; onDeleteItem?: (id: string) => Promise<void>; onImportItems?: (items: Requirement[]) => Promise<void>; onTestCasesChange?: (requirementId: string, ids: string[]) => Promise<void>; onAreaSave?: (name: string, id?: string) => Promise<string>; onAreaRemove?: (id: string) => Promise<string> }
+export function RequirementsPage({ types = [], areaInUse, projectId, data, testCases, onChange, onSaveItem, onDeleteItem, onImportItems, onTestCasesChange, onAreaSave, onAreaRemove }: Props) {
   const [filters, setFilters] = useState<RequirementFilters>({ search: '', areaId: '', status: '', coverage: '' })
   const [selectedId, setSelectedId] = useState('')
   const [mode, setMode] = useState<'view' | 'create' | 'edit'>('view')
@@ -44,6 +44,7 @@ export function RequirementsPage({ types = [], areaInUse, projectId, data, testC
     const input = { ...draft, projectId, code, title: draft.title.trim(), testCaseIds: [...new Set(draft.testCaseIds)], updatedAt: new Date().toISOString() }
     try {
       const saved = onSaveItem ? await onSaveItem(input, mode === 'create') : input
+      if (onTestCasesChange) await onTestCasesChange(saved.id, input.testCaseIds)
       onChange(current => ({ ...current, items: mode === 'create' ? [...current.items.filter(item => item.id !== saved.id), saved] : current.items.map(item => item.id === saved.id ? saved : item) }))
       setSelectedId(saved.id); setMode('view'); setDraft(null); setError('')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не вдалося зберегти Requirement.') }
@@ -84,7 +85,7 @@ export function RequirementsPage({ types = [], areaInUse, projectId, data, testC
     <div className={`tc-layout ${active ? 'tc-with-panel' : ''}`}>
       <RequirementTable items={visible} areas={areas} selectedId={selectedId} filters={filters} onFilters={setFilters} onOpen={item => open(item)} onEdit={item => open(item, true)} onDelete={setDeleting} onAdd={add}
         importExportActions={<ImportExportActions kind="requirements" validate={(rows, mapping) => validateRequirements(rows, mapping, { projectId, areas, existing: items })} onImport={async imported => { const values = imported.map(item => ({ ...item, testCaseIds: [] })); if (onImportItems) await onImportItems(values); else onChange(current => ({ ...current, items: [...current.items, ...values] })) }} exportRows={exportRows('requirements', { requirements: items, areas })} />} />
-      {active && <RequirementPanel onLinkTestCases={testCaseIds => onChange(current => ({ ...current, items: current.items.map(item => item.id === active.id ? { ...item, testCaseIds } : item) }))} key={active.id + mode} item={active} testCases={available} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
+      {active && <RequirementPanel onLinkTestCases={testCaseIds => { if (onTestCasesChange) void onTestCasesChange(active.id, testCaseIds).catch(reason => setError(reason instanceof Error ? reason.message : 'Не вдалося змінити зв’язки.')); else onChange(current => ({ ...current, items: current.items.map(item => item.id === active.id ? { ...item, testCaseIds } : item) })) }} key={active.id + mode} item={active} testCases={available} mode={mode} error={error} onChange={item => { setDraft(item); setError('') }} onSave={save} onEdit={() => { if (selected) open(selected, true) }} onCancel={() => { if (selected) open(selected); else close() }} onClose={close} />}
     </div>
     <Dialog open={Boolean(deleting)} onOpenChange={value => { if (!value) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Delete {deleting?.code}?</DialogTitle><DialogDescription>This removes the requirement and its links. Test cases will be kept.</DialogDescription></DialogHeader>{error && <p role="alert" className="form-error">{error}</p>}<DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={() => void remove()}>Delete requirement</Button></DialogFooter></DialogContent></Dialog>
   </main></DictionaryContext.Provider>

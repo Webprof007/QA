@@ -1,11 +1,14 @@
 import { ApiError, apiRequest } from './api'
-import type { Project, ProjectArea, Requirement, TestCase, TestCaseDictionaryValue, TestPlan } from '@/types'
+import type { Project, ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestPlan } from '@/types'
 
 type BackendProject = { id: number; name: string; description: string | null; createdByUserId: number | null; createdAt: string; updatedAt: string }
 type BackendArea = { id: number; projectId: number; name: string; createdAt: string; updatedAt: string }
 type BackendRequirement = { id: number; projectId: number; code: string; title: string; description: string | null; areaId: number | null; priority: string; status: string; source: string | null; notes: string | null; createdByUserId: number | null; createdAt: string; updatedAt: string }
 type BackendTestPlan = { id: number; projectId: number; title: string; version: string; status: string; objective: string | null; scopeIn: string | null; scopeOut: string | null; environment: string | null; entryCriteria: string | null; exitCriteria: string | null; risks: string | null; startDate: string | null; endDate: string | null; notes: string | null; createdByUserId: number | null; createdAt: string; updatedAt: string }
 type BackendType = { id: number; projectId: number; name: string; createdAt: string; updatedAt: string }
+type BackendTestStep = { id: number; action: string; expectedResult: string; sortOrder: number }
+type BackendTestCase = { id: number; projectId: number; code: string; title: string; areaId: number | null; typeId: number | null; priority: TestCase['priority']; status: TestCase['status']; preconditions: string[]; steps: BackendTestStep[]; postconditions: string[]; notes: string | null; createdAt: string; updatedAt: string }
+type BackendRequirementTestCaseLink = { projectId: number; requirementId: number; testCaseId: number; createdAt: string }
 
 const id = (value: number) => String(value)
 export function backendId(value: string) {
@@ -38,6 +41,14 @@ export function adaptTestPlan(value: BackendTestPlan): TestPlan {
   return { id: id(value.id), projectId: id(value.projectId), title: value.title, version: value.version, status: value.status as TestPlan['status'], objective: value.objective ?? '', scopeIn: value.scopeIn ?? '', scopeOut: value.scopeOut ?? '', environment: value.environment ?? '', entryCriteria: value.entryCriteria ?? '', exitCriteria: value.exitCriteria ?? '', risks: value.risks ?? '', startDate: value.startDate ?? '', endDate: value.endDate ?? '', notes: value.notes ?? '', updatedAt: value.updatedAt }
 }
 export const adaptType = (value: BackendType): TestCaseDictionaryValue => ({ id: id(value.id), projectId: id(value.projectId), name: value.name })
+export const adaptTestCase = (value: BackendTestCase): TestCase => ({
+  id: id(value.id), projectId: id(value.projectId), code: value.code, title: value.title,
+  areaId: value.areaId === null ? undefined : id(value.areaId), typeId: value.typeId === null ? undefined : id(value.typeId),
+  priority: value.priority, status: value.status, preconditions: value.preconditions ?? [],
+  steps: (value.steps ?? []).map(step => ({ id: id(step.id), action: step.action, expectedResult: step.expectedResult, sortOrder: step.sortOrder })),
+  postconditions: value.postconditions ?? [], notes: value.notes ?? '', createdAt: value.createdAt, updatedAt: value.updatedAt,
+})
+export const adaptRequirementTestCaseLink = (value: BackendRequirementTestCaseLink): RequirementTestCaseLink => ({ projectId: id(value.projectId), requirementId: id(value.requirementId), testCaseId: id(value.testCaseId) })
 
 export async function loadProjects(signal?: AbortSignal) { return (await apiRequest<{ success: true; projects: BackendProject[] }>('/projects/', { signal })).projects.map(adaptProject) }
 export async function createProject(name: string, description = '') { return adaptProject((await apiRequest<{ success: true; project: BackendProject }>('/projects/', { method: 'POST', body: { name, description } })).project) }
@@ -77,3 +88,25 @@ export async function saveTestCaseType(projectId: string, name: string, idValue?
   return adaptType((await apiRequest<{ success: true; type: BackendType }>('/test-case-types/', { method: idValue ? 'PATCH' : 'POST', body })).type)
 }
 export async function deleteTestCaseType(projectId: string, idValue: string) { await apiRequest('/test-case-types/', { method: 'DELETE', body: { projectId: backendId(projectId), id: backendId(idValue) } }) }
+
+const testCaseBody = (item: TestCase) => ({
+  projectId: backendId(item.projectId), code: item.code, title: item.title,
+  areaId: item.areaId ? backendId(item.areaId) : null, typeId: item.typeId ? backendId(item.typeId) : null,
+  priority: item.priority, status: item.status, preconditions: item.preconditions,
+  steps: [...item.steps].sort((left, right) => left.sortOrder - right.sortOrder).map(step => ({ action: step.action, expectedResult: step.expectedResult, sortOrder: step.sortOrder })),
+  postconditions: item.postconditions ?? [], notes: nullable(item.notes),
+})
+export async function loadTestCases(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; testCases: BackendTestCase[] }>(`/test-cases/${query(projectId)}`, { signal })).testCases.map(adaptTestCase) }
+export async function saveTestCase(item: TestCase, creating: boolean) {
+  const values = testCaseBody(item)
+  const body = creating ? values : { ...values, id: backendId(item.id) }
+  return adaptTestCase((await apiRequest<{ success: true; testCase: BackendTestCase }>('/test-cases/', { method: creating ? 'POST' : 'PATCH', body })).testCase)
+}
+export async function deleteTestCase(projectId: string, idValue: string) {
+  const response = await apiRequest<{ success: true; deletedTestCaseId: number }>('/test-cases/', { method: 'DELETE', body: { projectId: backendId(projectId), id: backendId(idValue) } })
+  return id(response.deletedTestCaseId)
+}
+
+export async function loadRequirementTestCaseLinks(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; links: BackendRequirementTestCaseLink[] }>(`/requirement-test-cases/${query(projectId)}`, { signal })).links.map(adaptRequirementTestCaseLink) }
+export async function createRequirementTestCaseLink(link: RequirementTestCaseLink) { await apiRequest('/requirement-test-cases/', { method: 'POST', body: { projectId: backendId(link.projectId), requirementId: backendId(link.requirementId), testCaseId: backendId(link.testCaseId) } }) }
+export async function deleteRequirementTestCaseLink(link: RequirementTestCaseLink) { await apiRequest('/requirement-test-cases/', { method: 'DELETE', body: { projectId: backendId(link.projectId), requirementId: backendId(link.requirementId), testCaseId: backendId(link.testCaseId) } }) }
