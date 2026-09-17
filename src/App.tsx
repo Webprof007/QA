@@ -57,6 +57,12 @@ function lastPageFor(userId: number, projectKey: string): Page {
   } catch { return 'Settings' }
 }
 
+function selectedProjectKey(userId: number) { return `qa:selectedProjectId:${userId}` }
+function savedProjectFor(userId: number): string {
+  try { return window.localStorage.getItem(selectedProjectKey(userId)) ?? '' }
+  catch { return '' }
+}
+
 function App() {
   const auth = useAuth()
   const [recovery, setRecovery] = useState<'forgot' | 'reset' | 'login' | null>(() => new URLSearchParams(window.location.search).has('resetPassword') ? 'reset' : null)
@@ -125,6 +131,15 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
     try { window.localStorage.setItem(`qa-last-page:${currentUser.id}:${projectId}`, page) } catch { /* storage can be unavailable in private browsing */ }
   }, [currentUser.id, page, projectId])
 
+  useEffect(() => {
+    if (projectsLoading) return
+    try {
+      const key = selectedProjectKey(currentUser.id)
+      if (projectId) window.localStorage.setItem(key, projectId)
+      else window.localStorage.removeItem(key)
+    } catch { /* storage can be unavailable in private browsing */ }
+  }, [currentUser.id, projectId, projectsLoading])
+
   const apiFailure = useCallback((error: unknown) => {
     if (error instanceof ApiError && error.status === 401) onUnauthorized()
     return errorMessage(error)
@@ -137,7 +152,11 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         setProjects(items)
         setBackendError('')
         setProjectDataLoading(items.length > 0)
-        const nextProjectId = items[0]?.id ?? ''
+        const savedProjectId = savedProjectFor(currentUser.id)
+        const nextProjectId = items.some(item => item.id === savedProjectId) ? savedProjectId : items[0]?.id ?? ''
+        if (savedProjectId && savedProjectId !== nextProjectId) {
+          try { window.localStorage.removeItem(selectedProjectKey(currentUser.id)) } catch { /* storage can be unavailable in private browsing */ }
+        }
         setProjectId(nextProjectId)
         if (nextProjectId) setPage(lastPageFor(currentUser.id, nextProjectId))
       }
