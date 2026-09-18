@@ -17,7 +17,7 @@ Reviewed against the frontend on 2026-09-16. This document records current owner
 | Requirement | API-backed `requirementsByProject[id].items`; one live definition. Optional Priority reuses the current Test Case priority values; it is not Defect priority. |
 | TestPlan | API-backed `testPlans[]`; many plans per project, planning documents, not implicit containers of Test Cases. |
 | TestCase | API-backed `testCasesByProject[id].items`; central live definition with technical ID, display code and structured steps. Test Case Types are also API-backed for the selected project. |
-| TestSuite | `testSuites.suites`; reusable definitions with ordered central Test Case ID links in `testSuites.links`. |
+| TestSuite | API-backed `testSuites.suites`; reusable definitions with ordered central Test Case ID links in `testSuites.links`. |
 | TestRun / TestExecution | `testRunData.runs` / `.executions`; executions reference a case and contain its historical snapshot. |
 | Defect | `defects.items`; independent editable product issue, including its own copied incident context. |
 | DefectRetest | `defectRetests[]` in QAApp; append-only focused verification records, separate from Defect and TestExecution. |
@@ -168,7 +168,7 @@ A Defect created from an execution copies incident context once; later definitio
 
 Test Plan ≠ Test Suite ≠ Test Run; SmokeSuite ≠ TestSuite. A plan is a document, a general suite is an editable group of central cases, and a run is an execution record. General suites have no Area, type, status or results of their own. Smoke retains its separate prerequisites and execution lifecycle.
 
-`testSuites` in QAApp owns `suites: TestSuite[]` and `links: TestSuiteTestCaseLink[]`. Links store only `{projectId, suiteId, testCaseId, order}`. Saving validates suite/case project ownership and deduplicates IDs. Editing or removing membership never edits central cases. Demo suites reference existing case IDs without creating definitions.
+`testSuites` in QAApp is the API-backed state cache for `suites: TestSuite[]` and `links: TestSuiteTestCaseLink[]`. Links store only `{projectId, suiteId, testCaseId, order}`. Saving validates suite/case project ownership and deduplicates IDs before the backend persists the ordered membership. Editing or removing membership never edits central cases.
 
 Create Test Run from Suite prefills the existing run editor with ordered member IDs. Users may change the selection without modifying the suite. At creation, `sourceTestSuiteId`, `sourceTestSuiteCodeSnapshot` and `sourceTestSuiteNameSnapshot` capture source context from a validated same-project suite. Executions, in their creation order, and deep TestCaseSnapshots are the authoritative run content; live suite membership is never used to reconstruct history. No separate suite execution mechanism is introduced.
 

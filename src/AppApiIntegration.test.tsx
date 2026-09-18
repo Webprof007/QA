@@ -28,6 +28,8 @@ function apiFetch(options?: { requirementMutationError?: boolean }) {
     if (url.includes('/project-areas/')) return json({ success: true, areas: [] })
     if (url.includes('/test-plans/')) return json({ success: true, testPlans: [] })
     if (url.includes('/test-case-types/')) return json({ success: true, types: [] })
+    if (url.includes('/test-suites/')) return json({ success: true, testSuites: [] })
+    if (url.includes('/test-suite-test-cases/')) return json({ success: true, links: [] })
     if (url.includes('/requirement-test-cases/')) return json({ success: true, links: [{ projectId, requirementId: projectId * 10, testCaseId: projectId * 10 + 1, createdAt: '' }] })
     if (url.includes('/test-cases/')) return json({ success: true, testCases: [testCase(projectId)] })
     if (url.includes('/requirements/')) {

@@ -9,12 +9,12 @@ import { TestCaseLinkPicker } from '@/components/requirements/TestCaseLinkPicker
 import { moveItem } from '@/components/test-cases/testCaseOptions'
 import { testSuiteCases, nextTestSuiteCode, type TestSuiteInput } from '@/lib/testSuites'
 import { runCounts } from '@/lib/testRuns'
-import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestSuitesState, TestRunsState } from '@/types'
+import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestSuite, TestSuitesState, TestRunsState } from '@/types'
 import './RequirementsPage.css'
-type Props = { projectId: string; data: TestSuitesState; cases: TestCase[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; runs: TestRunsState; initialId?: string; onSave: (input: TestSuiteInput) => string | null; onDelete: (id: string) => void; onCreateRun: (id: string) => void; onOpenRun: (id: string) => void }
+type Props = { projectId: string; data: TestSuitesState; cases: TestCase[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; runs: TestRunsState; initialId?: string; onSave: (input: TestSuiteInput) => Promise<TestSuite>; onDelete: (id: string) => Promise<void>; onCreateRun: (id: string) => void; onOpenRun: (id: string) => void }
 export function TestSuitesPage({ projectId, data, cases, areas, types, runs, initialId, onSave, onDelete, onCreateRun, onOpenRun }: Props) {
   const [selectedId, setSelectedId] = useState(initialId ?? ''), [search, setSearch] = useState(''), [draft, setDraft] = useState<TestSuiteInput | null>(null)
-  const [picker, setPicker] = useState(false), [deleting, setDeleting] = useState(''), [error, setError] = useState('')
+  const [picker, setPicker] = useState(false), [deleting, setDeleting] = useState(''), [error, setError] = useState(''), [saving, setSaving] = useState(false)
   const suites = data.suites.filter(item => item.projectId === projectId), selected = suites.find(item => item.id === selectedId)
   const available = cases.filter(item => item.projectId === projectId), projectAreas = areas.filter(item => item.projectId === projectId), projectTypes = types.filter(item => item.projectId === projectId)
   const liveCases = selected ? testSuiteCases(data, projectId, selected.id, available) : []
@@ -24,6 +24,22 @@ export function TestSuitesPage({ projectId, data, cases, areas, types, runs, ini
   const query = search.trim().toLowerCase()
   function close() { setSelectedId(''); setDraft(null); setPicker(false); setError('') }
   function edit() { if (selected) setDraft({ id: selected.id, name: selected.name, description: selected.description, testCaseIds: liveCases.map(item => item.id) }) }
+  async function saveDraft() {
+    if (!draft || saving) return
+    setSaving(true); setError('')
+    try {
+      const saved = await onSave(draft)
+      setSelectedId(saved.id); setDraft(null)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не вдалося зберегти Suite.') }
+    finally { setSaving(false) }
+  }
+  async function confirmDelete() {
+    if (!deleting || saving) return
+    setSaving(true); setError('')
+    try { await onDelete(deleting); setDeleting(''); close() }
+    catch (reason) { setDeleting(''); setError(reason instanceof Error ? reason.message : 'Не вдалося видалити Suite.') }
+    finally { setSaving(false) }
+  }
   return <main className="smoke-app"><header className="page-heading"><h1>Test Suites / Набори тестів</h1></header>
     <div className={`tc-layout ${selected || draft ? 'tc-with-panel' : ''}`}><section className="tc-list">
       <div className="tc-toolbar"><AddEntityButton entity="test suite" onClick={() => { setSelectedId(''); setError(''); setDraft({ id: crypto.randomUUID(), name: '', description: '', testCaseIds: [] }) }} /><Input aria-label="Search test suites" placeholder="Search by code or name..." value={search} onChange={event => setSearch(event.target.value)} /></div>
@@ -31,16 +47,16 @@ export function TestSuitesPage({ projectId, data, cases, areas, types, runs, ini
       {!suites.length && <p className="muted">Test Suites поки немає.</p>}
     </section>
     {(selected || draft) && <aside className="tc-panel" aria-label="Test suite panel"><div className="panel-heading"><div><p className="test-id">{selected?.code ?? nextTestSuiteCode(data, projectId)}</p><h2>{draft ? selected ? 'Edit Test Suite' : 'New Test Suite' : selected?.name}</h2></div><Button variant="ghost" size="icon" aria-label="Close suite" title="Close suite" onClick={close}><X /></Button></div>
-      <form className="tc-form" onSubmit={event => { event.preventDefault(); if (draft) { const message = onSave(draft); if (message) setError(message); else { setSelectedId(draft.id); setDraft(null); setError('') } } }}>
+      <form className="tc-form" onSubmit={event => { event.preventDefault(); void saveDraft() }}>
         {draft ? <><div className="field"><label htmlFor="test-suite-name">Name</label><Input id="test-suite-name" required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></div><div className="field"><label htmlFor="test-suite-description">Description</label><Textarea id="test-suite-description" rows={3} value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></div></> : <><p>{selected?.description || '—'}</p><div className="tc-panel-actions"><Button type="button" variant="outline" onClick={edit}>Edit Suite</Button><Button type="button" disabled={!liveCases.length || !!missing} onClick={() => onCreateRun(selected!.id)}>Create Test Run</Button><Button type="button" variant="ghost" onClick={() => setDeleting(selected!.id)}>Delete Suite</Button></div></>}
         {missing && <p role="status">Missing test case. Оновіть склад Suite перед створенням запуску.</p>}
         <section className="tc-section"><h3>Test Cases</h3><table className="tc-table" aria-label="Suite members"><thead><tr><th>ID / Title</th><th>Area</th><th>Priority</th><th>Type / Status</th>{draft && <th>Order</th>}</tr></thead><tbody>{shownIds.map((id, index) => { const test = available.find(item => item.id === id); return <tr key={id}><td>{index + 1}. {test?.code}<br />{test?.title ?? 'Missing test case'}</td><td>{projectAreas.find(item => item.id === test?.areaId)?.name || '—'}</td><td>{test?.priority || '—'}</td><td>{projectTypes.find(item => item.id === test?.typeId)?.name || '—'}<br />{test?.status}</td>{draft && <td><div className="tc-order"><Button type="button" variant="ghost" size="sm" disabled={!index} aria-label={`Move ${test?.code} up`} onClick={() => setDraft({ ...draft, testCaseIds: moveItem(draft.testCaseIds, index, -1) })}>↑</Button><Button type="button" variant="ghost" size="sm" disabled={index + 1 === shownIds.length} aria-label={`Move ${test?.code} down`} onClick={() => setDraft({ ...draft, testCaseIds: moveItem(draft.testCaseIds, index, 1) })}>↓</Button><Button type="button" variant="ghost" size="sm" aria-label={`Remove ${test?.code}`} onClick={() => setDraft({ ...draft, testCaseIds: draft.testCaseIds.filter(value => value !== id) })}>×</Button></div></td>}</tr> })}</tbody></table>{draft && <Button type="button" variant="outline" onClick={() => setPicker(true)}>Select Test Cases</Button>}</section>
-        {error && <p role="alert" className="form-error">{error}</p>}{draft && <div className="tc-panel-actions"><Button type="submit">Save Suite</Button><Button type="button" variant="outline" onClick={() => { setDraft(null); setError('') }}>Cancel</Button></div>}
+        {error && <p role="alert" className="form-error">{error}</p>}{draft && <div className="tc-panel-actions"><Button type="submit" disabled={saving}>Save Suite</Button><Button type="button" variant="outline" disabled={saving} onClick={() => { setDraft(null); setError('') }}>Cancel</Button></div>}
         {!draft && <section className="tc-section" aria-label="Source test runs"><h3>Test Runs</h3><table className="tc-table"><thead><tr>{['Run Name', 'Build / Збірка', 'Environment / Середовище', 'Status', 'Progress', 'Started'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{history.map(run => { const progress = runCounts(runs.executions.filter(item => item.projectId === projectId && item.runId === run.id)); return <tr key={run.id} onClick={() => onOpenRun(run.id)}><td><button type="button" className="tc-open" onClick={() => onOpenRun(run.id)}>{run.name}</button></td><td>{run.buildVersionSnapshot || '—'}</td><td>{run.environmentNameSnapshot || '—'}</td><td>{run.status}</td><td>{progress.done} / {progress.total}</td><td>{run.startedAt ? new Date(run.startedAt).toLocaleString() : '—'}</td></tr> })}</tbody></table>{!history.length && <p className="muted">Запусків із цього Suite поки немає.</p>}</section>}
       </form>
     </aside>}
     </div>
     {picker && draft && <TestCaseLinkPicker testCases={available} areas={projectAreas} types={projectTypes} selectedIds={draft.testCaseIds} onClose={() => setPicker(false)} onApply={ids => { setDraft({ ...draft, testCaseIds: [...draft.testCaseIds.filter(id => ids.includes(id)), ...ids.filter(id => !draft.testCaseIds.includes(id))] }); setPicker(false) }} />}
-    <Dialog open={!!deleting} onOpenChange={open => { if (!open) setDeleting('') }}><DialogContent><DialogHeader><DialogTitle>Видалити Test Suite?</DialogTitle><DialogDescription>Test Cases та історичні Test Runs залишаться.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting('')}>Cancel</Button><Button variant="destructive" onClick={() => { onDelete(deleting); setDeleting(''); close() }}>Delete Test Suite</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={!!deleting} onOpenChange={open => { if (!open && !saving) setDeleting('') }}><DialogContent><DialogHeader><DialogTitle>Видалити Test Suite?</DialogTitle><DialogDescription>Test Cases та історичні Test Runs залишаться.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting('')}>Cancel</Button><Button variant="destructive" disabled={saving} onClick={() => void confirmDelete()}>Delete Test Suite</Button></DialogFooter></DialogContent></Dialog>
   </main>
 }

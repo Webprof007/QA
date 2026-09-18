@@ -5,8 +5,7 @@ import type { DefectRetest } from '@/types'
 import { ProjectSettingsPage } from '@/pages/ProjectSettingsPage'
 import { createProjectSetupMockData } from '@/data/projectSetupMockData'
 import { TestSuitesPage } from '@/pages/TestSuitesPage'
-import { createTestSuitesMockData } from '@/data/testSuitesMockData'
-import { saveTestSuite, deleteTestSuite } from '@/lib/testSuites'
+import { validateTestSuiteInput, type TestSuiteInput } from '@/lib/testSuites'
 import { createSmokeMockData } from '@/data/smokeMockData'
 import { saveChecklistRun } from '@/lib/checklists'
 import { CoveragePage } from '@/pages/CoveragePage'
@@ -39,7 +38,7 @@ import { PasswordRecoveryPage } from '@/pages/PasswordRecoveryPage'
 import { AuthPage } from '@/pages/AuthPage'
 import { saveAudit, transitionAudit, saveAuditCheck, saveAuditFinding, removeAuditFinding } from '@/lib/audit'
 import { initialAudits, initialAuditTypes } from '@/data/auditMockData'
-import type { AuditState, Checklist, ChecklistRun, TestPlan, TestRunsState, TestCasesProjectState, Page, Project } from '@/types'
+import type { AuditState, Checklist, ChecklistRun, TestPlan, TestRunsState, TestCasesProjectState, TestSuitesState, Page, Project } from '@/types'
 import './AppShell.css'
 import './App.css'
 import './styles/EntityWorkspace.css'
@@ -47,7 +46,7 @@ import './styles/FormControls.css'
 import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
-import { createProject as createProjectApi, createRequirementTestCaseLink, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteRequirementTestCaseLink, deleteTestCase as deleteTestCaseApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, loadAreas, loadProjects, loadRequirementTestCaseLinks, loadRequirements, loadTestCases, loadTestCaseTypes, loadTestPlans, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCase as saveTestCaseApi, saveTestCaseType, saveTestPlan as saveTestPlanApi } from '@/lib/qaApi'
+import { createProject as createProjectApi, createRequirementTestCaseLink, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteRequirementTestCaseLink, deleteTestCase as deleteTestCaseApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, deleteTestSuite as deleteTestSuiteApi, loadAreas, loadProjects, loadRequirementTestCaseLinks, loadRequirements, loadTestCases, loadTestCaseTypes, loadTestPlans, loadTestSuiteTestCaseLinks, loadTestSuites, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCase as saveTestCaseApi, saveTestCaseType, saveTestPlan as saveTestPlanApi, saveTestSuite as saveTestSuiteApi, saveTestSuiteTestCaseLinks } from '@/lib/qaApi'
 
 function lastPageFor(userId: number, projectKey: string, fallback: Page = 'Settings'): Page {
   try {
@@ -99,7 +98,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [page, setPage] = useState<Page>('Settings')
   const [projectSetup, setProjectSetup] = useState(createProjectSetupMockData)
   const [seed] = useState(createProjectAreaData)
-  const [testSuites, setTestSuites] = useState(() => createTestSuitesMockData(Object.values(seed.testCases).flatMap(data => data.items)))
+  const [testSuites, setTestSuites] = useState<TestSuitesState>({ suites: [], links: [] })
   const [suiteTarget, setSuiteTarget] = useState<{ id?: string; key: number }>({ key: 0 })
   const [smoke, setSmoke] = useState(() => createSmokeMockData(Object.values(seed.testCases).flatMap(data => data.items)))
   const [projectAreas, setProjectAreas] = useState<import('@/types').ProjectArea[]>([])
@@ -172,8 +171,8 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   useEffect(() => {
     if (!projectId) return
     const controller = new AbortController(), selectedProjectId = projectId
-    void Promise.allSettled([loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal), loadTestCases(selectedProjectId, controller.signal), loadRequirementTestCaseLinks(selectedProjectId, controller.signal)])
-      .then(([areas, requirements, plans, types, cases, links]) => {
+    void Promise.allSettled([loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal), loadTestCases(selectedProjectId, controller.signal), loadRequirementTestCaseLinks(selectedProjectId, controller.signal), loadTestSuites(selectedProjectId, controller.signal), loadTestSuiteTestCaseLinks(selectedProjectId, controller.signal)])
+      .then(([areas, requirements, plans, types, cases, links, suites, suiteLinks]) => {
         if (controller.signal.aborted) return
         if (areas.status === 'fulfilled') setProjectAreas(current => [...current.filter(item => item.projectId !== selectedProjectId), ...areas.value])
         if (requirements.status === 'fulfilled') setRequirementsByProject(current => ({ ...current, [selectedProjectId]: { items: requirements.value } }))
@@ -184,7 +183,11 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
           requirementLinksRef.current = next
           return next
         })
-        const failure = [areas, requirements, plans, types, cases, links].find(result => result.status === 'rejected')
+        if (suites.status === 'fulfilled' || suiteLinks.status === 'fulfilled') setTestSuites(current => ({
+          suites: suites.status === 'fulfilled' ? [...current.suites.filter(item => item.projectId !== selectedProjectId), ...suites.value] : current.suites,
+          links: suiteLinks.status === 'fulfilled' ? [...current.links.filter(item => item.projectId !== selectedProjectId), ...suiteLinks.value] : current.links,
+        }))
+        const failure = [areas, requirements, plans, types, cases, links, suites, suiteLinks].find(result => result.status === 'rejected')
         setBackendError(failure?.status === 'rejected' ? apiFailure(failure.reason) : '')
       })
       .finally(() => { if (!controller.signal.aborted) setProjectDataLoading(false) })
@@ -401,6 +404,36 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       setTestPlans(current => current.filter(item => item.projectId !== projectId || item.id !== id))
     } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
   }
+  async function saveTestSuiteRemote(input: TestSuiteInput) {
+    const cases = testCasesByProject[projectId]?.items ?? []
+    const existing = testSuites.suites.find(item => item.id === input.id)
+    try {
+      const testCaseIds = validateTestSuiteInput(testSuites, projectId, input, cases)
+      const saved = await saveTestSuiteApi({
+        id: input.id,
+        projectId,
+        code: existing?.code ?? '',
+        name: input.name.trim(),
+        description: input.description,
+        createdAt: existing?.createdAt ?? '',
+        updatedAt: existing?.updatedAt ?? '',
+      }, !existing)
+      await saveTestSuiteTestCaseLinks(projectId, saved.id, testCaseIds)
+      setTestSuites(current => ({
+        suites: current.suites.some(item => item.projectId === projectId && item.id === saved.id)
+          ? current.suites.map(item => item.projectId === projectId && item.id === saved.id ? saved : item)
+          : [...current.suites, saved],
+        links: [...current.links.filter(link => link.projectId !== projectId || link.suiteId !== saved.id), ...testCaseIds.map((testCaseId, order) => ({ projectId, suiteId: saved.id, testCaseId, order }))],
+      }))
+      return saved
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function removeTestSuite(id: string) {
+    try {
+      await deleteTestSuiteApi(projectId, id)
+      setTestSuites(current => ({ suites: current.suites.filter(item => item.projectId !== projectId || item.id !== id), links: current.links.filter(item => item.projectId !== projectId || item.suiteId !== id) }))
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
   function openTestSuite(id: string) {
     if (!testSuites.suites.some(item => item.projectId === projectId && item.id === id)) return
     setSuiteTarget(current => ({ id, key: current.key + 1 })); setPage('Test Suites')
@@ -482,7 +515,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         ) : page === 'Smoke' && project ? (
           <SmokePage initialExecutionId={followupTarget.source?.type === "smokeExecution" ? followupTarget.source.id : undefined} setup={projectSetup} key={project.id + followupTarget.key} projectId={project.id} data={smoke} onChange={setSmoke} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} userId={currentUser.id} />
         ) : page === 'Test Suites' && project ? (
-          <TestSuitesPage key={`${project.id}-${suiteTarget.key}`} initialId={suiteTarget.id} projectId={project.id} data={testSuites} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} runs={testRunData} onCreateRun={createRunFromSuite} onOpenRun={openSuiteRun} onDelete={id => setTestSuites(current => deleteTestSuite(current, project.id, id))} onSave={input => { try { setTestSuites(saveTestSuite(testSuites, project.id, input, testCasesByProject[project.id]?.items ?? [])); return null } catch (error) { return error instanceof Error ? error.message : 'Не вдалося зберегти Suite.' } }} />
+          <TestSuitesPage key={`${project.id}-${suiteTarget.key}`} initialId={suiteTarget.id} projectId={project.id} data={testSuites} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} runs={testRunData} onCreateRun={createRunFromSuite} onOpenRun={openSuiteRun} onDelete={removeTestSuite} onSave={saveTestSuiteRemote} />
         ) : page === 'Coverage' && project ? (
           <CoveragePage key={project.id} projectId={project.id} requirements={requirementsByProject[project.id]?.items ?? []} cases={testCasesByProject[project.id]?.items ?? []} links={requirementLinks} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} executions={testRunData.executions} onLinksChange={changeCoverage} />
         ) : page === 'Defects' && project ? (

@@ -12,12 +12,17 @@ export function testSuiteCases(state: TestSuitesState, projectId: string, suiteI
 export function nextTestSuiteCode(state: TestSuitesState, projectId: string) {
   return `TS-${String(Math.max(0, ...state.suites.filter(item => item.projectId === projectId).map(item => /^TS-\d+$/.test(item.code) ? Number(item.code.slice(3)) : 0)) + 1).padStart(3, '0')}`
 }
-export function saveTestSuite(state: TestSuitesState, projectId: string, input: TestSuiteInput, cases: TestCase[]): TestSuitesState {
+export function validateTestSuiteInput(state: TestSuitesState, projectId: string, input: TestSuiteInput, cases: TestCase[]) {
   const existing = state.suites.find(item => item.id === input.id)
   if (existing && existing.projectId !== projectId) throw new Error('Suite належить іншому проєкту.')
   if (!input.name.trim()) throw new Error('Введіть назву Test Suite.')
   const ids = [...new Set(input.testCaseIds)]
   if (ids.some(id => !cases.some(item => item.id === id && item.projectId === projectId))) throw new Error('Виберіть Test Cases поточного проєкту.')
+  return ids
+}
+export function saveTestSuite(state: TestSuitesState, projectId: string, input: TestSuiteInput, cases: TestCase[]): TestSuitesState {
+  const existing = state.suites.find(item => item.id === input.id)
+  const ids = validateTestSuiteInput(state, projectId, input, cases)
   const now = new Date().toISOString()
   const suite: TestSuite = { id: input.id, projectId, code: existing?.code ?? nextTestSuiteCode(state, projectId), name: input.name.trim(), description: input.description, createdAt: existing?.createdAt ?? now, updatedAt: now }
   return { suites: existing ? state.suites.map(item => item.projectId === projectId && item.id === suite.id ? suite : item) : [...state.suites, suite], links: [...state.links.filter(link => link.projectId !== projectId || link.suiteId !== suite.id), ...ids.map((testCaseId, order) => ({ projectId, suiteId: suite.id, testCaseId, order }))] }

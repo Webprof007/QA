@@ -1,5 +1,5 @@
 import { ApiError, apiRequest } from './api'
-import type { Project, ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestPlan } from '@/types'
+import type { Project, ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestPlan, TestSuite, TestSuiteTestCaseLink } from '@/types'
 
 type BackendProject = { id: number; name: string; description: string | null; createdByUserId: number | null; createdAt: string; updatedAt: string }
 type BackendArea = { id: number; projectId: number; name: string; createdAt: string; updatedAt: string }
@@ -9,6 +9,8 @@ type BackendType = { id: number; projectId: number; name: string; createdAt: str
 type BackendTestStep = { id: number; action: string; expectedResult: string; sortOrder: number }
 type BackendTestCase = { id: number; projectId: number; code: string; title: string; areaId: number | null; typeId: number | null; priority: TestCase['priority']; status: TestCase['status']; preconditions: string[]; steps: BackendTestStep[]; postconditions: string[]; notes: string | null; createdAt: string; updatedAt: string }
 type BackendRequirementTestCaseLink = { projectId: number; requirementId: number; testCaseId: number; createdAt: string }
+type BackendTestSuite = { id: number; projectId: number; code: string; name: string; description: string | null; createdByUserId: number | null; createdAt: string; updatedAt: string }
+type BackendTestSuiteTestCaseLink = { projectId: number; testSuiteId: number; testCaseId: number; sortOrder: number }
 
 const id = (value: number) => String(value)
 export function backendId(value: string) {
@@ -49,6 +51,8 @@ export const adaptTestCase = (value: BackendTestCase): TestCase => ({
   postconditions: value.postconditions ?? [], notes: value.notes ?? '', createdAt: value.createdAt, updatedAt: value.updatedAt,
 })
 export const adaptRequirementTestCaseLink = (value: BackendRequirementTestCaseLink): RequirementTestCaseLink => ({ projectId: id(value.projectId), requirementId: id(value.requirementId), testCaseId: id(value.testCaseId) })
+export const adaptTestSuite = (value: BackendTestSuite): TestSuite => ({ id: id(value.id), projectId: id(value.projectId), code: value.code, name: value.name, description: value.description ?? '', createdAt: value.createdAt, updatedAt: value.updatedAt })
+export const adaptTestSuiteTestCaseLink = (value: BackendTestSuiteTestCaseLink): TestSuiteTestCaseLink => ({ projectId: id(value.projectId), suiteId: id(value.testSuiteId), testCaseId: id(value.testCaseId), order: value.sortOrder })
 
 export async function loadProjects(signal?: AbortSignal) { return (await apiRequest<{ success: true; projects: BackendProject[] }>('/projects/', { signal })).projects.map(adaptProject) }
 export async function createProject(name: string, description = '') { return adaptProject((await apiRequest<{ success: true; project: BackendProject }>('/projects/', { method: 'POST', body: { name, description } })).project) }
@@ -110,3 +114,17 @@ export async function deleteTestCase(projectId: string, idValue: string) {
 export async function loadRequirementTestCaseLinks(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; links: BackendRequirementTestCaseLink[] }>(`/requirement-test-cases/${query(projectId)}`, { signal })).links.map(adaptRequirementTestCaseLink) }
 export async function createRequirementTestCaseLink(link: RequirementTestCaseLink) { await apiRequest('/requirement-test-cases/', { method: 'POST', body: { projectId: backendId(link.projectId), requirementId: backendId(link.requirementId), testCaseId: backendId(link.testCaseId) } }) }
 export async function deleteRequirementTestCaseLink(link: RequirementTestCaseLink) { await apiRequest('/requirement-test-cases/', { method: 'DELETE', body: { projectId: backendId(link.projectId), requirementId: backendId(link.requirementId), testCaseId: backendId(link.testCaseId) } }) }
+
+export async function loadTestSuites(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; testSuites: BackendTestSuite[] }>(`/test-suites/${query(projectId)}`, { signal })).testSuites.map(adaptTestSuite) }
+export async function saveTestSuite(item: TestSuite, creating: boolean) {
+  const values = { projectId: backendId(item.projectId), name: item.name, description: nullable(item.description) }
+  const body = creating ? values : { ...values, id: backendId(item.id) }
+  return adaptTestSuite((await apiRequest<{ success: true; testSuite: BackendTestSuite }>('/test-suites/', { method: creating ? 'POST' : 'PATCH', body })).testSuite)
+}
+export async function deleteTestSuite(projectId: string, idValue: string) { await apiRequest('/test-suites/', { method: 'DELETE', body: { projectId: backendId(projectId), id: backendId(idValue) } }) }
+export async function loadTestSuiteTestCaseLinks(projectId: string, signal?: AbortSignal) {
+  return (await apiRequest<{ success: true; links: BackendTestSuiteTestCaseLink[] }>(`/test-suite-test-cases/${query(projectId)}`, { signal })).links.map(adaptTestSuiteTestCaseLink)
+}
+export async function saveTestSuiteTestCaseLinks(projectId: string, suiteId: string, testCaseIds: string[]) {
+  await apiRequest('/test-suite-test-cases/', { method: 'PATCH', body: { projectId: backendId(projectId), testSuiteId: backendId(suiteId), testCaseIds: testCaseIds.map(backendId) } })
+}

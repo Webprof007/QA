@@ -1,14 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
-import type { Project, ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestPlan } from '@/types'
+import type { Project, ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestPlan, TestSuite, TestSuiteTestCaseLink } from '@/types'
 
 const apiFixture = vi.hoisted<{ reset: () => void }>(() => ({ reset: () => undefined }))
 
 vi.mock('@/lib/qaApi', async () => {
-  const [{ projects }, { createProjectAreaData }, { initialRequirementTestCaseLinks }] = await Promise.all([
+  const [{ projects }, { createProjectAreaData }, { initialRequirementTestCaseLinks }, { createTestSuitesMockData }] = await Promise.all([
     import('@/data/mockData'), import('@/data/projectAreaMockData'), import('@/data/requirementsMockData'),
+    import('@/data/testSuitesMockData'),
   ])
-  let projectItems: Project[] = [], areas: ProjectArea[] = [], requirements: Requirement[] = [], cases: TestCase[] = [], types: TestCaseDictionaryValue[] = [], plans: TestPlan[] = [], links: RequirementTestCaseLink[] = []
+  let projectItems: Project[] = [], areas: ProjectArea[] = [], requirements: Requirement[] = [], cases: TestCase[] = [], types: TestCaseDictionaryValue[] = [], plans: TestPlan[] = [], links: RequirementTestCaseLink[] = [], suites: TestSuite[] = [], suiteLinks: TestSuiteTestCaseLink[] = []
   const reset = () => {
     const seed = createProjectAreaData()
     projectItems = structuredClone(projects)
@@ -18,6 +19,9 @@ vi.mock('@/lib/qaApi', async () => {
     types = structuredClone(Object.values(seed.testCases).flatMap(value => value.types))
     plans = []
     links = structuredClone(initialRequirementTestCaseLinks)
+    const suiteSeed = createTestSuitesMockData(cases)
+    suites = structuredClone(suiteSeed.suites)
+    suiteLinks = structuredClone(suiteSeed.links)
   }
   apiFixture.reset = reset
   reset()
@@ -69,6 +73,18 @@ vi.mock('@/lib/qaApi', async () => {
       if (!links.some(item => item.projectId === link.projectId && item.requirementId === link.requirementId && item.testCaseId === link.testCaseId)) links = [...links, structuredClone(link)]
     },
     deleteRequirementTestCaseLink: async (link: RequirementTestCaseLink) => { links = links.filter(item => item.projectId !== link.projectId || item.requirementId !== link.requirementId || item.testCaseId !== link.testCaseId) },
+    loadTestSuites: async (projectId: string) => structuredClone(suites.filter(item => item.projectId === projectId)),
+    saveTestSuite: async (item: TestSuite, creating: boolean) => {
+      const existing = suites.find(value => value.id === item.id && value.projectId === item.projectId)
+      const saved: TestSuite = creating ? { ...item, id: item.id, code: `TS-${String(suites.filter(value => value.projectId === item.projectId).length + 1).padStart(3, '0')}`, createdAt: 'created', updatedAt: 'created' } : { ...item, code: existing?.code ?? item.code, createdAt: existing?.createdAt ?? 'created', updatedAt: 'updated' }
+      suites = creating ? [...suites, saved] : suites.map(value => value.id === saved.id && value.projectId === saved.projectId ? saved : value)
+      return structuredClone(saved)
+    },
+    deleteTestSuite: async (projectId: string, id: string) => { suites = suites.filter(item => item.projectId !== projectId || item.id !== id); suiteLinks = suiteLinks.filter(item => item.projectId !== projectId || item.suiteId !== id) },
+    loadTestSuiteTestCaseLinks: async (projectId: string) => structuredClone(suiteLinks.filter(item => item.projectId === projectId)),
+    saveTestSuiteTestCaseLinks: async (projectId: string, suiteId: string, testCaseIds: string[]) => {
+      suiteLinks = [...suiteLinks.filter(item => item.projectId !== projectId || item.suiteId !== suiteId), ...[...new Set(testCaseIds)].map((testCaseId, order) => ({ projectId, suiteId, testCaseId, order }))]
+    },
   }
 })
 

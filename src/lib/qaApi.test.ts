@@ -9,6 +9,7 @@ import {
   deleteRequirement,
   deleteRequirementTestCaseLink,
   deleteTestCase,
+  deleteTestSuite,
   loadAreas,
   loadProjects,
   loadRequirements,
@@ -16,13 +17,17 @@ import {
   loadTestCases,
   loadTestCaseTypes,
   loadTestPlans,
+  loadTestSuiteTestCaseLinks,
+  loadTestSuites,
   saveArea,
   saveRequirement,
   saveTestCase,
   saveTestCaseType,
   saveTestPlan,
+  saveTestSuite,
+  saveTestSuiteTestCaseLinks,
 } from './qaApi'
-import type { Requirement, TestCase, TestPlan } from '@/types'
+import type { Requirement, TestCase, TestPlan, TestSuite } from '@/types'
 
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 const project = { id: 3, name: 'Voicli', description: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
@@ -30,6 +35,7 @@ const area = { id: 7, projectId: 3, name: 'Authentication', createdAt: '2026-09-
 const requirement = { id: 11, projectId: 3, code: 'REQ-011', title: 'Login', description: null, areaId: 7, priority: 'High', status: 'Approved', source: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const plan = { id: 12, projectId: 3, title: 'Release 2.6', version: '2.6', status: 'Active', objective: 'Regression', scopeIn: null, scopeOut: null, environment: 'Staging and Production', entryCriteria: null, exitCriteria: null, risks: null, startDate: null, endDate: null, notes: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 const testCase = { id: 21, projectId: 3, code: 'TC-021', title: 'Login', areaId: 7, typeId: 5, priority: 'high', status: 'active', preconditions: ['Account exists'], steps: [{ id: 91, action: 'Open login', expectedResult: 'Form opens', sortOrder: 0 }], postconditions: ['Sign out'], notes: null, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
+const suite = { id: 31, projectId: 3, code: 'TS-001', name: 'Regression', description: null, createdByUserId: 42, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-02T00:00:00Z' }
 
 beforeEach(() => vi.unstubAllGlobals())
 
@@ -62,6 +68,7 @@ describe('QA API boundary', () => {
       .mockResolvedValueOnce(json({ success: true, areas: [area] }))
       .mockResolvedValueOnce(json({ success: true, area }, 201))
       .mockResolvedValueOnce(json({ success: true, area: renamed }))
+      .mockResolvedValueOnce(json({ success: true }))
       .mockResolvedValueOnce(json({ success: true }))
     vi.stubGlobal('fetch', fetch)
     await expect(loadAreas('3')).resolves.toEqual([{ id: '7', projectId: '3', name: 'Authentication' }])
@@ -141,6 +148,28 @@ describe('QA API boundary', () => {
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual(expect.objectContaining({ projectId: 3, areaId: 7, typeId: 5, steps: [{ action: 'Open login', expectedResult: 'Form opens', sortOrder: 0 }], notes: null }))
     expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual(expect.objectContaining({ projectId: 3, id: 21, title: 'Updated' }))
     expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({ projectId: 3, id: 21 })
+  })
+
+  it('loads and saves Test Suites with ordered Test Case ID links', async () => {
+    const input: TestSuite = { id: '31', projectId: '3', code: 'TS-001', name: 'Regression', description: '', createdAt: '', updatedAt: '' }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(json({ success: true, testSuites: [suite] }))
+      .mockResolvedValueOnce(json({ success: true, links: [{ projectId: 3, testSuiteId: 31, testCaseId: 21, sortOrder: 2 }] }))
+      .mockResolvedValueOnce(json({ success: true, testSuite: suite }, 201))
+      .mockResolvedValueOnce(json({ success: true, testSuite: { ...suite, name: 'Updated' } }))
+      .mockResolvedValueOnce(json({ success: true }))
+      .mockResolvedValueOnce(json({ success: true }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(loadTestSuites('3')).resolves.toEqual([expect.objectContaining({ id: '31', projectId: '3', description: '' })])
+    await expect(loadTestSuiteTestCaseLinks('3')).resolves.toEqual([{ projectId: '3', suiteId: '31', testCaseId: '21', order: 2 }])
+    await saveTestSuite(input, true)
+    await saveTestSuite({ ...input, name: 'Updated' }, false)
+    await saveTestSuiteTestCaseLinks('3', '31', ['21', '22'])
+    await deleteTestSuite('3', '31')
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ projectId: 3, name: 'Regression', description: null })
+    expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({ projectId: 3, name: 'Updated', description: null, id: 31 })
+    expect(JSON.parse(fetch.mock.calls[4][1].body)).toEqual({ projectId: 3, testSuiteId: 31, testCaseIds: [21, 22] })
+    expect(JSON.parse(fetch.mock.calls[5][1].body)).toEqual({ projectId: 3, id: 31 })
   })
 
   it('loads, creates and removes Requirement ↔ Test Case ID links', async () => {

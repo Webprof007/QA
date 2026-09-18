@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TestSuitesPage } from './TestSuitesPage'
 import { initialTestCasesByProject } from '@/data/testCasesMockData'
 import { createTestSuitesMockData } from '@/data/testSuitesMockData'
@@ -19,11 +19,11 @@ describe('General Test Suites UI', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'TC-001 Login valid user' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'TC-002 Wrong password' }))
     click('Apply selection'); click('Move TC-002 up'); click('Save Suite')
-    expect(members()[0]).toContain('TC-002')
+    await waitFor(() => expect(members()[0]).toContain('TC-002'))
     click('Edit Suite'); change('Name', 'Discard'); click('Remove TC-001'); click('Cancel')
     expect(members()).toHaveLength(2); expect(screen.queryByText('Discard')).toBeNull()
     click('Edit Suite'); change('Name', 'Renamed'); change('Description', 'Updated description'); click('Move TC-002 down'); click('Remove TC-002'); click('Save Suite')
-    expect(members()).toHaveLength(1); expect(members()[0]).toContain('TC-001'); expect(screen.getByText('Updated description')).toBeTruthy()
+    await waitFor(() => expect(members()).toHaveLength(1)); expect(members()[0]).toContain('TC-001'); expect(screen.getByText('Updated description')).toBeTruthy()
     click('Close suite'); change('Search test suites', 'ts-003'); expect(screen.getByText('Renamed')).toBeTruthy(); expect(screen.queryByText('Regression')).toBeNull()
     change('Search test suites', 'AUTHENTICATION'); expect(screen.getByText('Authentication')).toBeTruthy()
     click('Test Cases / Тест-кейси'); expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5)
@@ -39,9 +39,10 @@ describe('General Test Suites UI', () => {
     expect(codes).toEqual(['TC-001', 'TC-004', 'TC-002'])
     click('View Suite'); expect(within(screen.getByRole('region', { name: 'Source test runs' })).getByRole('button', { name: 'Regression 2.6' })).toBeTruthy()
     click('Edit Suite'); change('Name', 'Changed suite'); click('Remove TC-004'); click('Save Suite')
+    await waitFor(() => expect(screen.getAllByText('Changed suite')).not.toHaveLength(0))
     click('Regression 2.6'); expect(screen.getByLabelText('Source Suite').textContent).toContain('TS-001 — Regression'); expect(screen.getByRole('button', { name: 'TC-004' })).toBeTruthy()
     click('View Suite'); click('Delete Suite'); click('Cancel'); expect(screen.getByRole('button', { name: 'Open TS-001' })).toBeTruthy()
-    click('Delete Suite'); click('Delete Test Suite'); expect(screen.queryByRole('button', { name: 'Open TS-001' })).toBeNull(); expect(screen.getByRole('button', { name: 'Open TS-002' })).toBeTruthy()
+    click('Delete Suite'); click('Delete Test Suite'); await waitFor(() => expect(screen.queryByRole('button', { name: 'Open TS-001' })).toBeNull()); expect(screen.getByRole('button', { name: 'Open TS-002' })).toBeTruthy()
     click('Test Runs / Запуски тестів'); click('Regression 2.6'); expect(screen.getByLabelText('Source Suite').textContent).toContain('TS-001 — Regression'); expect(screen.queryByRole('button', { name: 'View Suite' })).toBeNull()
     click('TC-004'); expect(screen.getByRole('complementary', { name: 'Execution panel' })).toBeTruthy()
   })
@@ -50,13 +51,20 @@ describe('General Test Suites UI', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' }); fireEvent.click(await screen.findByRole('menuitemradio', { name: 'QP Notes' }))
     expect(screen.queryByRole('button', { name: 'Open TS-001' })).toBeNull()
     click('+ Add test suite'); change('Name', 'QP suite'); click('Select Test Cases'); expect(screen.queryByRole('checkbox', { name: /TC-001/ })).toBeNull(); click('Cancel'); click('Save Suite')
-    expect(screen.getByText('TS-001', { selector: 'p' })).toBeTruthy(); expect(screen.queryByText('Regression')).toBeNull()
+    await waitFor(() => expect(screen.getByText('TS-001', { selector: 'p' })).toBeTruthy()); expect(screen.queryByText('Regression')).toBeNull()
+  })
+  it('keeps Suite state unchanged when the backend rejects a save', async () => {
+    const data = structuredClone(initialTestCasesByProject.voicli)
+    render(<TestSuitesPage projectId="voicli" data={{ suites: [], links: [] }} cases={data.items} areas={data.areas} types={data.types} runs={{ runs: [], executions: [] }} onSave={async () => { throw new Error('Suite rejected') }} onDelete={async () => undefined} onCreateRun={vi.fn()} onOpenRun={vi.fn()} />)
+    click('+ Add test suite'); change('Name', 'Rejected Suite'); click('Save Suite')
+    expect((await screen.findByRole('alert')).textContent).toContain('Suite rejected')
+    expect(screen.queryByText('Rejected Suite', { selector: 'td' })).toBeNull()
   })
   it('handles missing live cases and isolates source run history even with mixed project data', () => {
     const data = structuredClone(initialTestCasesByProject.voicli), suites = createTestSuitesMockData(data.items)
     const run = createTestRun('voicli', { name: 'Visible run', browser: '', deviceOrOs: '', notes: '', sourceTestSuiteId: suites.suites[0].id, testCaseIds: [data.items[0].id] }, data.items, [], data.areas, data.types, suites.suites)
     const onOpenRun = vi.fn()
-    render(<TestSuitesPage projectId="voicli" initialId={suites.suites[0].id} data={{ ...suites, suites: [...suites.suites, { ...suites.suites[0], id: 'foreign', projectId: 'qp-notes', name: 'Foreign suite' }] }} cases={data.items.slice(1)} areas={data.areas} types={data.types} runs={{ executions: run.executions, runs: [...run.runs, { ...run.runs[0], id: 'foreign-run', projectId: 'qp-notes', name: 'Foreign run' }, { ...run.runs[0], id: 'other-suite-run', sourceTestSuiteId: suites.suites[1].id, name: 'Other suite run' }] }} onSave={() => null} onDelete={vi.fn()} onCreateRun={vi.fn()} onOpenRun={onOpenRun} />)
+    render(<TestSuitesPage projectId="voicli" initialId={suites.suites[0].id} data={{ ...suites, suites: [...suites.suites, { ...suites.suites[0], id: 'foreign', projectId: 'qp-notes', name: 'Foreign suite' }] }} cases={data.items.slice(1)} areas={data.areas} types={data.types} runs={{ executions: run.executions, runs: [...run.runs, { ...run.runs[0], id: 'foreign-run', projectId: 'qp-notes', name: 'Foreign run' }, { ...run.runs[0], id: 'other-suite-run', sourceTestSuiteId: suites.suites[1].id, name: 'Other suite run' }] }} onSave={async () => suites.suites[0]} onDelete={async () => undefined} onCreateRun={vi.fn()} onOpenRun={onOpenRun} />)
     expect(screen.getByRole('status').textContent).toContain('Missing test case')
     expect((screen.getByRole('button', { name: 'Create Test Run' }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.queryByText('Foreign suite')).toBeNull(); expect(screen.queryByText('Foreign run')).toBeNull(); expect(screen.queryByText('Other suite run')).toBeNull()
