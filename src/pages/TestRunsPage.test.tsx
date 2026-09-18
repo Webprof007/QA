@@ -58,7 +58,8 @@ describe('Test Runs workspace', () => {
     expect(within(panel()).queryByRole('combobox')).toBeNull()
   })
   it('isolates runs, selectors and plans between projects', async () => {
-    await renderAuthenticatedApp(); click('Test Plan / План тестування'); click('+ Add test plan'); change('Title', 'Voicli release'); click('Save')
+    await renderAuthenticatedApp(); click('Test Plan / План тестування'); click('+ Create Test Plan'); change('Title / Назва', 'Voicli release'); click('Save')
+    await screen.findByRole('button', { name: 'Open Voicli release' })
     click('Test Runs / Запуски тестів'); click('+ Add test run'); expect(within(screen.getByLabelText('Test Plan')).getByRole('option', { name: 'Voicli release · 1.0' })).toBeTruthy()
     change('Test Plan', (within(screen.getByLabelText('Test Plan')).getByRole('option', { name: 'Voicli release · 1.0' }) as HTMLOptionElement).value)
     change('Name', 'Voicli regression'); click('Select all visible'); click('Create Run')

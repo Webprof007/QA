@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
 
+vi.mock('@/lib/qaApi', () => ({ loadProjects: async () => [] }))
+
 type WidgetOptions = Parameters<NonNullable<Window['turnstile']>['render']>[1]
 let widgetOptions: WidgetOptions
 const resetCaptcha = vi.fn()

@@ -97,6 +97,17 @@ it('loads, creates, edits and deletes API-backed Test Cases without changing sta
   expect(fetch.mock.calls.some(([url, init]) => String(url).includes('/test-cases/') && init?.method === 'DELETE')).toBe(true)
 })
 
+it('uses compact plain multiline controls for conditions and Steps', async () => {
+  await openCases(backend())
+  await rowAction('TC-003', 'Edit')
+  const panel = within(screen.getByRole('complementary', { name: 'Test case panel' }))
+  expect(panel.getByLabelText('Preconditions / Передумови 1').tagName).toBe('TEXTAREA')
+  expect(panel.getByLabelText('Action').tagName).toBe('TEXTAREA')
+  expect(panel.getByLabelText('Expected / Очікуваний результат').tagName).toBe('TEXTAREA')
+  expect(panel.getByRole('button', { name: 'Move step 1 up' })).toBeTruthy()
+  expect(panel.getByRole('button', { name: 'Delete step 1' }).querySelector('svg')).toBeTruthy()
+})
+
 it('keeps Test Case state intact when the backend rejects create', async () => {
   await openCases(backend({ rejectCreate: true }))
   fireEvent.click(screen.getByRole('button', { name: '+ Add test case' }))
@@ -121,9 +132,31 @@ it('creates and removes Requirement links through the API and persists imported 
   await waitFor(() => expect(fetch.mock.calls.some(([url, init]) => String(url).includes('/requirement-test-cases/') && init?.method === 'DELETE')).toBe(true))
 
   fireEvent.click(screen.getByRole('button', { name: 'Import' }))
-  const file = new File(['Title\nImported API case'], 'cases.csv', { type: 'text/csv' })
+  const file = new File(['Title\nImported API case\nImported API case'], 'cases.csv', { type: 'text/csv' })
   fireEvent.change(screen.getByLabelText('Upload import file'), { target: { files: [file] } })
-  fireEvent.click(await screen.findByRole('button', { name: 'Import 1 rows' }))
+  expect(await screen.findByText(/Duplicate row in file/)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Import 1 valid rows' }))
   await waitFor(() => expect(fetch.mock.calls.filter(([url, init]) => String(url).includes('/test-cases/') && init?.method === 'POST')).toHaveLength(1))
   expect(await screen.findByText('Imported API case')).toBeTruthy()
+})
+
+it('hydrates saved Requirement coverage and reverse traceability after reload', async () => {
+  const fetch = backend()
+  await openCases(fetch)
+  fireEvent.click(screen.getByRole('button', { name: 'Open TC-003' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Manage Requirements' }))
+  fireEvent.click(screen.getByRole('checkbox', { name: 'REQ-003 Login requirement' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Apply selection' }))
+  await waitFor(() => expect(screen.getByText('REQ-003')).toBeTruthy())
+
+  cleanup()
+  render(<App />)
+  await screen.findByRole('button', { name: 'Project: Alpha' })
+  fireEvent.click(screen.getByRole('button', { name: 'Coverage / Покриття' }))
+  const coverage = await screen.findByRole('table', { name: 'Requirement coverage' })
+  const requirementRow = within(coverage).getByRole('button', { name: 'Open REQ-003' }).closest('tr')
+  expect(requirementRow?.textContent).toContain('1Covered')
+  fireEvent.click(screen.getByRole('button', { name: 'Traceability / Простежуваність' }))
+  const traceability = screen.getByRole('table', { name: 'Test case traceability' })
+  expect(within(traceability).getByRole('button', { name: 'Open TC-003' }).closest('tr')?.textContent).toContain('1')
 })

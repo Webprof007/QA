@@ -27,7 +27,7 @@ import { createEvidenceUrls } from '@/lib/evidenceUrls'
 import { EvidenceContext } from '@/components/evidence/evidenceContext'
 import { ownerEvidence, replaceEvidence, commitRetestEvidence, type EvidenceOwners } from '@/lib/evidence'
 import type { EvidenceItem } from '@/types'
-import { useCallback, useEffect, useState, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
 import { AppSidebar } from '@/components/AppSidebar'
 import { navigationLabels } from '@/components/navigationLabels'
 import { ProjectCreateDialog } from '@/components/ProjectCreateDialog'
@@ -49,11 +49,11 @@ import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
 import { createProject as createProjectApi, createRequirementTestCaseLink, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteRequirementTestCaseLink, deleteTestCase as deleteTestCaseApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, loadAreas, loadProjects, loadRequirementTestCaseLinks, loadRequirements, loadTestCases, loadTestCaseTypes, loadTestPlans, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCase as saveTestCaseApi, saveTestCaseType, saveTestPlan as saveTestPlanApi } from '@/lib/qaApi'
 
-function lastPageFor(userId: number, projectKey: string): Page {
+function lastPageFor(userId: number, projectKey: string, fallback: Page = 'Settings'): Page {
   try {
     const saved = window.localStorage.getItem(`qa-last-page:${userId}:${projectKey}`) as Page | null
-    return saved && navigationLabels[saved] ? saved : 'Settings'
-  } catch { return 'Settings' }
+    return saved && navigationLabels[saved] ? saved : fallback
+  } catch { return fallback }
 }
 
 function selectedProjectKey(userId: number) { return `qa:selectedProjectId:${userId}` }
@@ -114,7 +114,10 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [checklistRuns, setChecklistRuns] = useState<ChecklistRun[]>([])
   const [auditTypes, setAuditTypes] = useState(initialAuditTypes)
   const [requirementLinks, setRequirementLinks] = useState<import('@/types').RequirementTestCaseLink[]>([])
+  const requirementLinksRef = useRef<import('@/types').RequirementTestCaseLink[]>([])
+  const coverageMutationQueue = useRef<Promise<void>>(Promise.resolve())
   const [requirementsByProject, setRequirementsByProject] = useState<Record<string, { items: import('@/types').Requirement[] }>>({})
+  const requirementsByProjectRef = useRef(requirementsByProject)
   const [testCasesByProject, setTestCasesByProject] = useState<Record<string, Pick<TestCasesProjectState, 'items' | 'types'>>>({})
   const [auditData, setAuditData] = useState<AuditState>(() => ({ audits: structuredClone(initialAudits), checks: [], findings: Object.values(seed.audit).flat() }))
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([])
@@ -122,6 +125,8 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const defectSources = { testRuns: testRunData, smoke, audits: auditData }
   const evidenceOwners: EvidenceOwners = { testRuns: testRunData, smoke, defects: defects.items, retests: defectRetests, audits: auditData.audits, auditFindings: auditData.findings }
   useEffect(() => evidenceUrls.retain(evidenceItems.map(item => item.url)), [evidenceItems, evidenceUrls])
+  useEffect(() => { requirementLinksRef.current = requirementLinks }, [requirementLinks])
+  useEffect(() => { requirementsByProjectRef.current = requirementsByProject }, [requirementsByProject])
   const availableProjects = projects
   const project = availableProjects.find(item => item.id === projectId)
 
@@ -174,7 +179,11 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         if (requirements.status === 'fulfilled') setRequirementsByProject(current => ({ ...current, [selectedProjectId]: { items: requirements.value } }))
         if (plans.status === 'fulfilled') setTestPlans(current => [...current.filter(item => item.projectId !== selectedProjectId), ...plans.value])
         if (types.status === 'fulfilled' || cases.status === 'fulfilled') setTestCasesByProject(current => ({ ...current, [selectedProjectId]: { items: cases.status === 'fulfilled' ? cases.value : current[selectedProjectId]?.items ?? [], types: types.status === 'fulfilled' ? types.value : current[selectedProjectId]?.types ?? [] } }))
-        if (links.status === 'fulfilled') setRequirementLinks(current => [...current.filter(link => link.projectId !== selectedProjectId), ...links.value])
+        if (links.status === 'fulfilled') setRequirementLinks(current => {
+          const next = [...current.filter(link => link.projectId !== selectedProjectId), ...links.value]
+          requirementLinksRef.current = next
+          return next
+        })
         const failure = [areas, requirements, plans, types, cases, links].find(result => result.status === 'rejected')
         setBackendError(failure?.status === 'rejected' ? apiFailure(failure.reason) : '')
       })
@@ -183,7 +192,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   }, [projectId, apiFailure])
 
   function changeProject(id: string) {
-    if (availableProjects.some(item => item.id === id)) { setProjectDataLoading(true); setBackendError(''); setProjectId(id); setPage(lastPageFor(currentUser.id, id)); setFollowupTarget({ key: 0 }); setSuiteTarget({ key: 0 }); setDefectTarget({ key: 0 }); setExecutionTarget({ key: 0 }) }
+    if (availableProjects.some(item => item.id === id)) { setProjectDataLoading(true); setBackendError(''); setProjectId(id); setPage(lastPageFor(currentUser.id, id, page)); setFollowupTarget({ key: 0 }); setSuiteTarget({ key: 0 }); setDefectTarget({ key: 0 }); setExecutionTarget({ key: 0 }) }
   }
 
   async function addProject(name: string) {
@@ -257,23 +266,40 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
     })
     setRequirementsByProject(current => ({ ...current, [projectId]: { items } }))
   }
-  async function changeCoverage(direction: 'requirement' | 'testCase', id: string, selectedIds: string[]) {
-    const currentProjectLinks = requirementLinks.filter(link => link.projectId === projectId)
-    const desired = replaceCoverageLinks(requirementLinks, projectId, direction, id, selectedIds, requirementsByProject[projectId]?.items ?? [], testCasesByProject[projectId]?.items ?? []).filter(link => link.projectId === projectId)
-    const key = (link: import('@/types').RequirementTestCaseLink) => `${link.requirementId}:${link.testCaseId}`
-    const currentKeys = new Set(currentProjectLinks.map(key)), desiredKeys = new Set(desired.map(key))
-    const additions = desired.filter(link => !currentKeys.has(key(link)))
-    const removals = currentProjectLinks.filter(link => !desiredKeys.has(key(link)))
-    try {
-      await Promise.all([...additions.map(createRequirementTestCaseLink), ...removals.map(deleteRequirementTestCaseLink)])
-      setRequirementLinks(current => [...current.filter(link => link.projectId !== projectId), ...desired])
-    } catch (error) {
+  function changeCoverage(direction: 'requirement' | 'testCase', id: string, selectedIds: string[]) {
+    const selectedProjectId = projectId
+    const requirements = requirementsByProjectRef.current[selectedProjectId]?.items ?? []
+    const cases = testCasesByProject[selectedProjectId]?.items ?? []
+    const task = coverageMutationQueue.current.then(async () => {
+      const currentLinks = requirementLinksRef.current
+      const currentProjectLinks = currentLinks.filter(link => link.projectId === selectedProjectId)
+      const desired = replaceCoverageLinks(currentLinks, selectedProjectId, direction, id, selectedIds, requirements, cases).filter(link => link.projectId === selectedProjectId)
+      const key = (link: import('@/types').RequirementTestCaseLink) => `${link.requirementId}:${link.testCaseId}`
+      const currentKeys = new Set(currentProjectLinks.map(key)), desiredKeys = new Set(desired.map(key))
+      const additions = desired.filter(link => !currentKeys.has(key(link)))
+      const removals = currentProjectLinks.filter(link => !desiredKeys.has(key(link)))
       try {
-        const reloaded = await loadRequirementTestCaseLinks(projectId)
-        setRequirementLinks(current => [...current.filter(link => link.projectId !== projectId), ...reloaded])
-      } catch { /* keep the last known cache if reconciliation also fails */ }
-      throw new Error(apiFailure(error), { cause: error })
-    }
+        await Promise.all([...additions.map(createRequirementTestCaseLink), ...removals.map(deleteRequirementTestCaseLink)])
+        const reloaded = await loadRequirementTestCaseLinks(selectedProjectId)
+        setRequirementLinks(current => {
+          const next = [...current.filter(link => link.projectId !== selectedProjectId), ...reloaded]
+          requirementLinksRef.current = next
+          return next
+        })
+      } catch (error) {
+        try {
+          const reloaded = await loadRequirementTestCaseLinks(selectedProjectId)
+          setRequirementLinks(current => {
+            const next = [...current.filter(link => link.projectId !== selectedProjectId), ...reloaded]
+            requirementLinksRef.current = next
+            return next
+          })
+        } catch { /* keep the last known cache if reconciliation also fails */ }
+        throw new Error(apiFailure(error), { cause: error })
+      }
+    })
+    coverageMutationQueue.current = task.catch(() => undefined)
+    return task
   }
 
   function areaInUse(id: string) {
@@ -315,6 +341,14 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   async function saveRequirementRemote(item: import('@/types').RequirementWithTestCases, creating: boolean) {
     try {
       const saved = await saveRequirementApi(item, creating)
+      const current = requirementsByProjectRef.current
+      const next = { ...current, [projectId]: {
+          items: creating
+            ? [...(current[projectId]?.items ?? []).filter(value => value.id !== saved.id), saved]
+            : (current[projectId]?.items ?? []).map(value => value.id === saved.id ? saved : value),
+        } }
+      requirementsByProjectRef.current = next
+      setRequirementsByProject(next)
       return { ...saved, testCaseIds: item.testCaseIds }
     } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
   }

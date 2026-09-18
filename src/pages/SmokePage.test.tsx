@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { setFieldValue } from '@/test/fields'
 beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }))
@@ -79,6 +79,7 @@ describe('Normalized Smoke suites and runs', () => {
     click('Edit Suite'); change('Name', 'Updated suite'); change('Prerequisite 1', 'Updated prerequisite'); click('Remove test case 2')
     click('Select Test Cases'); checkbox('TC-004 Navigation link'); click('Apply selection'); click('Save Suite')
     click('Test Cases / Тест-кейси'); click('Open TC-001'); click('Edit test case'); change('Title', 'Updated login definition'); click('Save test case')
+    await screen.findByRole('heading', { name: 'Updated login definition' })
     click('Smoke / Смоук-тестування'); click('Open SMK-001'); click('Run #1')
     expect(screen.getByRole('heading', { name: 'Main Smoke' })).toBeTruthy()
     expect(executions().getByText('Login valid user')).toBeTruthy(); expect(executions().getByText('Wrong password')).toBeTruthy()
@@ -89,6 +90,7 @@ describe('Normalized Smoke suites and runs', () => {
     expect(screen.getByText('Updated prerequisite')).toBeTruthy()
     click('Test Cases / Тест-кейси')
     fireEvent.keyDown(screen.getByRole('button', { name: 'Actions TC-001' }), { key: 'Enter' }); fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' })); click('Delete test case')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     click('Smoke / Смоук-тестування'); click('Open SMK-001'); click('Run #1'); click('TC-001')
     expect(within(panel()).getByRole('heading', { name: 'Login valid user' })).toBeTruthy()
   })

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { setFieldValue, fieldValue } from '@/test/fields'
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
@@ -18,6 +18,9 @@ async function menu(trigger: string, action: string, role: 'menuitem' | 'menuite
 async function project(name: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name }))
+  await screen.findByRole('button', { name: `Project: ${name}` })
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
+  click('Test Cases / Тест-кейси')
 }
 function addStep(action: string, expected: string) {
   click('+ Add step')
@@ -43,7 +46,7 @@ describe('Project Test Cases', () => {
     expect(within(panel()).getByRole('button', { name: 'Save test case' }).getAttribute('type')).toBe('submit')
     expect(caseRows()[0].textContent).toContain('Login valid user')
     click('Save test case')
-    expect(caseRows()[0].textContent).toContain('Changed from panel header')
+    await waitFor(() => expect(caseRows()[0].textContent).toContain('Changed from panel header'))
   })
 
   it('opens edit mode from row actions and saves the changed title', async () => {
@@ -52,6 +55,7 @@ describe('Project Test Cases', () => {
     expect(within(panel()).getByLabelText('Title')).toBeTruthy()
     editField('Title', 'Updated through row menu')
     click('Save test case')
+    await waitFor(() => expect(caseRows()[0].textContent).toContain('Updated through row menu'))
     click('Close test case panel')
     click('Open TC-001')
     expect(within(panel()).getByRole('heading', { name: 'Updated through row menu' })).toBeTruthy()
@@ -74,7 +78,7 @@ describe('Project Test Cases', () => {
       click('Move ' + label + ' item 2 up')
     }
     click('Save test case')
-    expect(caseRows()).toHaveLength(5)
+    await waitFor(() => expect(caseRows()).toHaveLength(5))
     const steps = within(panel()).getByRole('region', { name: 'Steps' })
     expect(within(steps).getAllByRole('paragraph').map(p => p.textContent)).toEqual(['Second action', 'Second expectation', 'First action', 'First expectation'])
     expect(conditionSection('Preconditions / Передумови').getAllByRole('listitem')[0].textContent).toBe('Second condition')
@@ -85,7 +89,7 @@ describe('Project Test Cases', () => {
     click('Delete step 2')
     click('Delete Postconditions item 1')
     click('Save test case')
-    expect(caseRows()).toHaveLength(5)
+    await waitFor(() => expect(caseRows()).toHaveLength(5))
     expect(screen.getByRole('button', { name: 'Open TC-CUSTOM-001' })).toBeTruthy()
     expect(within(panel()).queryByText('Second action')).toBeNull()
     click('Close test case panel')
@@ -98,7 +102,7 @@ describe('Project Test Cases', () => {
     expect(caseRows()).toHaveLength(5)
     await menu('Actions TC-CUSTOM-001', 'Delete')
     click('Delete test case')
-    expect(caseRows()).toHaveLength(4)
+    await waitFor(() => expect(caseRows()).toHaveLength(4))
     expect(screen.queryByRole('complementary')).toBeNull()
   })
 
@@ -134,6 +138,7 @@ describe('Project Test Cases', () => {
     expect((screen.getByLabelText('ID/code') as HTMLInputElement).value).toBe('TC-001')
     editField('Title', 'QP scenario')
     click('Save test case')
+    await waitFor(() => expect(caseRows()).toHaveLength(1))
     await project('Voicli')
     expect(caseRows()).toHaveLength(4)
     expect(screen.queryByText('QP scenario')).toBeNull()
@@ -145,6 +150,7 @@ describe('Project Test Cases', () => {
     await menu('Project: QP Notes', 'Додати проєкт')
     change('Назва проєкту', 'New case project')
     click('Створити проєкт')
+    await screen.findByRole('button', { name: 'Project: New case project' })
     click('Test Cases / Тест-кейси')
     expect(caseRows()).toHaveLength(0)
   })
@@ -171,34 +177,18 @@ describe('Project Test Cases', () => {
     expect(within(panel()).getByRole('heading', { name: 'Login valid user' })).toBeTruthy()
   })
 
-  it('manages independent project dictionaries, renames references and prevents deletion while used', async () => {
+  it('uses project-scoped shared dictionaries without local dictionary management', async () => {
     await start()
     click('Open TC-001')
     click('Edit test case')
     fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))
-    click('Видалити Area Auth')
-    expect(screen.getByRole('alert').textContent).toContain('used by a test case')
-    click('Перейменувати Area Auth')
-    change('Нова назва', 'Accounts')
-    click('Зберегти назву')
-    expect(caseRows()[0].textContent).toContain('Accounts')
-    change('Додати Area', 'Temporary')
-    click('Додати Area')
-    click('Accounts')
-    fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))
-    click('Видалити Area Temporary')
-    expect(screen.queryByRole('button', { name: 'Temporary' })).toBeNull()
-    fireEvent.keyDown(screen.getByLabelText('Додати Area'), { key: 'Escape' })
-    fireEvent.click(within(panel()).getByRole('combobox', { name: 'Type' }))
-    change('Додати Type', 'Custom type')
-    click('Додати Type')
-    fireEvent.keyDown(screen.getByLabelText('Додати Type'), { key: 'Escape' })
-    click('Save test case')
-    expect(caseRows()[0].textContent).toContain('Custom type')
+    expect(screen.queryByLabelText('Додати Area')).toBeNull()
+    expect(within(panel()).getByRole('option', { name: 'Auth' })).toBeTruthy()
+    expect(within(panel()).getByRole('option', { name: 'Functional' })).toBeTruthy()
+    fireEvent.keyDown(within(panel()).getByRole('combobox', { name: 'Area' }), { key: 'Escape' })
     await project('QP Notes')
     click('+ Add test case')
-    fireEvent.click(within(panel()).getByRole('combobox', { name: 'Type' }))
-    expect(screen.queryByRole('button', { name: 'Custom type' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Functional' })).toBeNull()
+    expect(within(panel()).queryByRole('option', { name: 'Functional' })).toBeNull()
+    expect(within(panel()).queryByRole('option', { name: 'Auth' })).toBeNull()
   })
 })

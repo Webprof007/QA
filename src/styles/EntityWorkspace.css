@@ -4,6 +4,23 @@
 .tc-list, .tc-section, .settings-section { overflow-x: auto; }
 .tc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
 .import-export-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.import-dialog { width: min(920px, calc(100vw - 32px)); max-width: 920px; max-height: 88dvh; overflow-y: auto; }
+.import-file-picker { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr); align-items: center; gap: 12px; padding: 12px; border: 1px dashed var(--border); border-radius: 10px; background: color-mix(in oklab, var(--muted) 45%, transparent); }
+.import-file-picker span { display: grid; gap: 2px; }
+.import-file-picker small, .import-file-name { color: var(--muted-foreground); font-size: 12px; }
+.import-file-name { margin: -6px 0 0; }
+.import-review { display: grid; gap: 14px; min-width: 0; }
+.import-mapping { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.import-mapping h3 { grid-column: 1 / -1; font-size: 13px; font-weight: 600; }
+.import-mapping-row { display: grid; grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); align-items: center; gap: 8px; font-size: 12px; }
+.import-summary { display: flex; flex-wrap: wrap; gap: 16px; margin: 0; color: var(--muted-foreground); }
+.import-valid { color: #16724a; }
+.import-invalid { color: var(--destructive); }
+.import-preview { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+.import-preview .tc-table { min-width: 760px; }
+.import-row-invalid { background: color-mix(in oklab, var(--destructive) 8%, transparent); }
+.import-row-warning { background: color-mix(in oklab, #a16207 8%, transparent); }
+.import-issues { display: grid; gap: 4px; margin: 0; padding: 10px 10px 10px 28px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; }
 .tc-toolbar input { width: 260px; max-width: 100%; height: 32px; }
 .tc-add { margin-left: 0; border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); font-weight: 600; }
 .tc-add:hover { border-color: var(--primary); background: color-mix(in oklab, var(--primary) 86%, var(--background)); color: var(--primary-foreground); }
@@ -27,6 +44,10 @@
 .tc-section h3 { font-size: 14px; font-weight: 600; }
 .tc-step h4, .tc-step h5, .tc-form dt { font-size: 12px; font-weight: 500; }
 .tc-step { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tc-condition { display: grid; gap: 6px; padding: 6px 0; }
+.tc-item-heading { min-height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tc-item-heading .tc-order { margin: 0; flex-wrap: nowrap; }
+.tc-item-heading textarea { min-height: 52px; }
 .tc-field-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .tc-form dt { color: var(--muted-foreground); margin-bottom: 4px; }
 .tc-form p, .tc-form li { white-space: pre-wrap; font-size: 13px; }
@@ -38,4 +59,9 @@
 @media (max-width: 1000px) {
   .tc-layout.tc-with-panel { grid-template-columns: minmax(0, 1fr); }
   .tc-panel { position: fixed; inset: 12dvh 0 0; max-height: 88dvh; z-index: 40; background: var(--background); border: 1px solid var(--border); padding: 20px; border-radius: 12px 12px 0 0; }
+}
+@media (max-width: 680px) {
+  .import-file-picker, .import-mapping { grid-template-columns: minmax(0, 1fr); }
+  .import-mapping h3 { grid-column: auto; }
+  .import-mapping-row { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); }
 }

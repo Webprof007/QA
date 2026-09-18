@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { CoveragePage } from './CoveragePage'
 import { createProjectAreaData } from '@/data/projectAreaMockData'
@@ -23,6 +23,9 @@ async function filter(label: string, value: string) {
 async function project(name: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name }))
+  await screen.findByRole('button', { name: `Project: ${name}` })
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
+  navigate('Coverage / Покриття')
 }
 const start = async () => { await renderAuthenticatedApp(); navigate('Coverage / Покриття') }
 
@@ -44,14 +47,15 @@ describe('Coverage and bidirectional link management', () => {
     change('Search test cases', 'WRONG PASSWORD')
     check('TC-002 Wrong password')
     click('Apply selection')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(rows()).toHaveLength(0) // No longer matches Uncovered.
     expect(summary()).toContain('Coverage: 100%')
     const detail = screen.getByRole('complementary', { name: 'Coverage detail' })
     expect(within(detail).getAllByText('Never Run')).toHaveLength(2)
     click('Unlink TC-001')
-    expect(summary()).toContain('Coverage: 100%')
+    await waitFor(() => expect(summary()).toContain('Coverage: 100%'))
     click('Unlink TC-002')
-    expect(summary()).toContain('Coverage: 75%')
+    await waitFor(() => expect(summary()).toContain('Coverage: 75%'))
     click('Close coverage panel')
     expect(screen.queryByRole('complementary')).toBeNull()
     click('Clear filters')
@@ -70,6 +74,7 @@ describe('Coverage and bidirectional link management', () => {
     click('Link Test Cases')
     check('TC-004 Navigation link')
     click('Apply selection')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     navigate('Test Cases / Тест-кейси')
     click('Open TC-004')
     expect(screen.getByRole('region', { name: 'Requirements' }).textContent).toContain('REQ-NAV-001')
@@ -82,10 +87,12 @@ describe('Coverage and bidirectional link management', () => {
     check('REQ-AUTH-001 User can log in')
     check('REQ-AUTH-002 Invalid credentials are rejected')
     click('Apply selection')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(within(screen.getByRole('region', { name: 'Requirements' })).getAllByRole('listitem')).toHaveLength(3)
     click('Manage Requirements')
     check('REQ-NAV-001 User can navigate between pages')
     click('Apply selection')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(within(screen.getByRole('region', { name: 'Requirements' })).getAllByRole('listitem')).toHaveLength(2)
     navigate('Coverage / Покриття')
     expect(row('REQ-NAV-001').textContent).toContain('Uncovered')
@@ -94,6 +101,7 @@ describe('Coverage and bidirectional link management', () => {
     click('Open REQ-AUTH-001')
     expect(screen.getByRole('region', { name: 'Linked Test Cases' }).textContent).toContain('TC-004')
     click('Unlink TC-004')
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Linked Test Cases' }).textContent).not.toContain('TC-004'))
     navigate('Test Cases / Тест-кейси')
     click('Open TC-004')
     expect(within(screen.getByRole('region', { name: 'Requirements' })).getAllByRole('listitem')).toHaveLength(1)
@@ -111,9 +119,10 @@ describe('Coverage and bidirectional link management', () => {
     check('REQ-AUTH-001 User can log in')
     check('REQ-NAV-001 User can navigate between pages')
     click('Apply selection')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.getByRole('button', { name: 'Open TC-004' }).closest('tr')!.textContent).toContain('2')
     click('Unlink REQ-NAV-001')
-    expect(summary()).toContain('Coverage: 75%')
+    await waitFor(() => expect(summary()).toContain('Coverage: 75%'))
     change('Search by ID or title', 'navigation')
     expect(within(reverse).getAllByRole('row')).toHaveLength(2)
   })
@@ -125,10 +134,11 @@ describe('Coverage and bidirectional link management', () => {
     click('Edit requirement')
     change('Priority', 'high')
     click('Save requirement')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save requirement' })).toBeNull())
     navigate('Coverage / Покриття')
     await filter('Area', 'Auth')
     await filter('Priority', 'High')
-    await filter('Status', 'Approved')
+    await filter('Status', 'Approved / Затверджено')
     await filter('Coverage', 'Covered')
     change('Search by ID or title', 'login')
     expect(rows()).toHaveLength(0)
@@ -146,14 +156,17 @@ describe('Coverage and bidirectional link management', () => {
     expect(summary()).toContain('Coverage: 0%')
     navigate('Requirements / Вимоги'); click('+ Add requirement')
     change('Title', 'QP requirement'); click('Save requirement')
+    await screen.findByRole('heading', { name: 'QP requirement' })
     click('Link Test Cases')
     expect(screen.queryByRole('checkbox', { name: 'TC-001 Login valid user' })).toBeNull()
     click('Cancel')
     navigate('Test Cases / Тест-кейси'); click('+ Add test case')
     change('Title', 'QP test'); click('Save test case')
+    await screen.findByRole('heading', { name: 'QP test' })
     click('Manage Requirements')
     expect(screen.queryByRole('checkbox', { name: 'REQ-AUTH-001 User can log in' })).toBeNull()
     check('REQ-001 QP requirement'); click('Apply selection')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     navigate('Coverage / Покриття')
     expect(rows()).toHaveLength(1)
     expect(summary()).toContain('Coverage: 100%')

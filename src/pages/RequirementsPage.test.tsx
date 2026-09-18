@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { setFieldValue } from '@/test/fields'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
@@ -26,6 +26,8 @@ async function menu(trigger: string, action: string, role: 'menuitem' | 'menuite
 async function project(name: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name }))
+  await screen.findByRole('button', { name: `Project: ${name}` })
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
 }
 
 describe('Requirements and test case relations', () => {
@@ -44,7 +46,7 @@ describe('Requirements and test case relations', () => {
     click('Apply selection')
     expect(within(screen.getByRole('list', { name: 'Selected test cases' })).getAllByRole('listitem')).toHaveLength(2)
     click('Save requirement')
-    expect(rows()).toHaveLength(5)
+    await waitFor(() => expect(rows()).toHaveLength(5))
     expect(row('REQ-001').textContent).toContain('2 tests')
     expect(within(panel()).getByText('A new description')).toBeTruthy()
     const edit = within(panel()).getByRole('button', { name: 'Edit requirement' })
@@ -54,12 +56,12 @@ describe('Requirements and test case relations', () => {
     change('Title', 'Updated requirement')
     click('Unlink TC-001')
     click('Save requirement')
-    expect(rows()).toHaveLength(5)
+    await waitFor(() => expect(row('REQ-CUSTOM').textContent).toContain('1 test'))
     expect(row('REQ-CUSTOM').textContent).toContain('1 test')
     click('Edit requirement')
     click('Unlink TC-002')
     click('Save requirement')
-    expect(row('REQ-CUSTOM').textContent).toContain('0 tests')
+    await waitFor(() => expect(row('REQ-CUSTOM').textContent).toContain('0 tests'))
     click('Test Cases / Тест-кейси')
     expect(rows()).toHaveLength(4)
     click('Requirements / Вимоги')
@@ -71,7 +73,7 @@ describe('Requirements and test case relations', () => {
     expect(rows()).toHaveLength(5)
     await menu('Actions REQ-CUSTOM', 'Delete')
     click('Delete requirement')
-    expect(rows()).toHaveLength(4)
+    await waitFor(() => expect(rows()).toHaveLength(4))
     click('Test Cases / Тест-кейси')
     expect(rows()).toHaveLength(4)
   })
@@ -88,6 +90,7 @@ describe('Requirements and test case relations', () => {
     change('ID/code', 'TC-RENAMED')
     change('Title', 'Updated case definition')
     click('Save test case')
+    await screen.findByRole('heading', { name: 'Updated case definition' })
     expect(screen.getByRole('region', { name: 'Requirements' }).textContent).toContain('REQ-AUTH-001')
     click('Requirements / Вимоги')
     click('Open REQ-AUTH-001')
@@ -97,6 +100,7 @@ describe('Requirements and test case relations', () => {
     click('Edit requirement')
     click('Unlink TC-RENAMED')
     click('Save requirement')
+    await waitFor(() => expect(row('REQ-AUTH-001').textContent).toContain('1 test'))
     click('Test Cases / Тест-кейси')
     click('Open TC-RENAMED')
     expect(within(screen.getByRole('region', { name: 'Requirements' })).getAllByRole('listitem')).toHaveLength(1)
@@ -107,7 +111,7 @@ describe('Requirements and test case relations', () => {
     await start()
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull()
     await menu('Area', 'Auth', 'menuitemcheckbox')
-    await menu('Status', 'Approved', 'menuitemcheckbox')
+    await menu('Status', 'Approved / Затверджено', 'menuitemcheckbox')
     await menu('Coverage', 'Covered', 'menuitemcheckbox')
     expect(rows()).toHaveLength(1)
     for (const text of ['req-auth-001', 'USER CAN LOG IN', 'demo-requirement-1']) {
@@ -136,6 +140,7 @@ describe('Requirements and test case relations', () => {
     click('+ Add test case')
     change('Title', 'QP unique case')
     click('Save test case')
+    await screen.findByRole('heading', { name: 'QP unique case' })
     click('Requirements / Вимоги')
     click('+ Add requirement')
     change('Code', 'REQ-AUTH-001')
@@ -145,7 +150,7 @@ describe('Requirements and test case relations', () => {
     check('TC-001 QP unique case')
     click('Apply selection')
     click('Save requirement')
-    expect(row('REQ-AUTH-001').textContent).toContain('1 test')
+    await waitFor(() => expect(row('REQ-AUTH-001').textContent).toContain('1 test'))
     await project('Voicli')
     expect(rows()).toHaveLength(4)
     expect(screen.queryByText('QP unique requirement')).toBeNull()
@@ -153,11 +158,13 @@ describe('Requirements and test case relations', () => {
     click('Open TC-001')
     expect(screen.getByRole('region', { name: 'Requirements' }).textContent).not.toContain('QP unique requirement')
     await project('QP Notes')
+    click('Test Cases / Тест-кейси')
     click('Open TC-001')
     expect(screen.getByRole('region', { name: 'Requirements' }).textContent).toContain('QP unique requirement')
     await menu('Project: QP Notes', 'Додати проєкт')
     change('Назва проєкту', 'Empty requirement project')
     click('Створити проєкт')
+    await screen.findByRole('button', { name: 'Project: Empty requirement project' })
     click('Requirements / Вимоги')
     expect(rows()).toHaveLength(0)
     click('+ Add requirement')
@@ -171,6 +178,7 @@ describe('Requirements and test case relations', () => {
     click('Test Cases / Тест-кейси')
     await menu('Actions TC-002', 'Delete')
     click('Delete test case')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Open TC-002' })).toBeNull())
     click('Requirements / Вимоги')
     expect(row('REQ-AUTH-001').textContent).toContain('1 test')
     expect(row('REQ-AUTH-002').textContent).toContain('0 tests')
@@ -178,7 +186,7 @@ describe('Requirements and test case relations', () => {
     expect(within(panel()).getByText('No linked test cases.')).toBeTruthy()
   })
 
-  it('validates code, cancels edits and manages Area without deleting used values', async () => {
+  it('validates code, cancels edits and uses the shared project Area selector', async () => {
     await start()
     click('+ Add requirement')
     click('Save requirement')
@@ -191,19 +199,8 @@ describe('Requirements and test case relations', () => {
     click('Open REQ-AUTH-001')
     click('Edit requirement')
     fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))
-    click('Видалити Area Auth')
-    expect(screen.getByRole('alert').textContent).toContain('used by a requirement')
-    click('Перейменувати Area Auth')
-    change('Нова назва', 'Accounts')
-    click('Зберегти назву')
-    expect(row('REQ-AUTH-001').textContent).toContain('Accounts')
-    change('Додати Area', 'Temporary')
-    click('Додати Area')
-    click('Accounts')
-    fireEvent.click(within(panel()).getByRole('combobox', { name: 'Area' }))
-    click('Видалити Area Temporary')
-    expect(screen.queryByRole('button', { name: 'Temporary' })).toBeNull()
-    fireEvent.keyDown(screen.getByLabelText('Додати Area'), { key: 'Escape' })
+    expect(within(panel()).getByRole('option', { name: 'Auth' })).toBeTruthy()
+    expect(screen.queryByLabelText('Додати Area')).toBeNull()
     change('Title', 'Discard this title')
     click('Cancel')
     expect(within(panel()).getByRole('heading', { name: 'User can log in' })).toBeTruthy()

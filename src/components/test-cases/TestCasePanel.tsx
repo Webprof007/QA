@@ -1,9 +1,11 @@
 import { RichText } from '@/components/rich-text/RichText'
+import { richTextPlain } from '@/lib/richText'
 import { EntityLinkPicker } from '@/components/coverage/EntityLinkPicker'
 import { useContext, useState } from 'react'
-import { X } from 'lucide-react'
+import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { RichTextEditor } from '@/components/rich-text/RichTextEditor'
 import { AuditDictionarySelect as DictionarySelect } from '@/components/audit/AuditDictionarySelect'
 import { DictionaryContext } from '@/components/audit/dictionaryContext'
@@ -12,9 +14,9 @@ import { moveItem, priorities, statuses } from './testCaseOptions'
 
 function OrderButtons({ index, count, label, onMove, onDelete }: { index: number; count: number; label: string; onMove: (direction: number) => void; onDelete: () => void }) {
   return <div className="tc-order">
-    <Button type="button" variant="ghost" size="sm" disabled={index === 0} aria-label={`Move ${label} up`} onClick={() => onMove(-1)}>↑</Button>
-    <Button type="button" variant="ghost" size="sm" disabled={index === count - 1} aria-label={`Move ${label} down`} onClick={() => onMove(1)}>↓</Button>
-    <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${label}`} onClick={onDelete}>{label.startsWith('step') ? 'Delete step' : 'Delete item'}</Button>
+    <Button type="button" variant="ghost" size="icon-sm" disabled={index === 0} aria-label={`Move ${label} up`} title="Move up" onClick={() => onMove(-1)}><ArrowUp /></Button>
+    <Button type="button" variant="ghost" size="icon-sm" disabled={index === count - 1} aria-label={`Move ${label} down`} title="Move down" onClick={() => onMove(1)}><ArrowDown /></Button>
+    <Button type="button" variant="ghost" size="icon-sm" className="table-delete-button" aria-label={`Delete ${label}`} title="Delete" onClick={onDelete}><X /></Button>
   </div>
 }
 function Conditions({ label, values, editing, onChange }: { label: string; values: string[]; editing: boolean; onChange: (values: string[]) => void }) {
@@ -22,8 +24,8 @@ function Conditions({ label, values, editing, onChange }: { label: string; value
     <h3>{label}</h3>
     {editing ? <>
       {values.map((value, index) => <div key={index} className="tc-condition">
-        <RichTextEditor aria-label={`${label} ${index + 1}`} rows={2} value={value} onValueChange={value => onChange(values.map((entry, position) => position === index ? value : entry))} />
-        <OrderButtons index={index} count={values.length} label={`${label} item ${index + 1}`} onMove={direction => onChange(moveItem(values, index, direction))} onDelete={() => onChange(values.filter((_, position) => position !== index))} />
+        <div className="tc-item-heading"><h4>Item {index + 1}</h4><OrderButtons index={index} count={values.length} label={`${label} item ${index + 1}`} onMove={direction => onChange(moveItem(values, index, direction))} onDelete={() => onChange(values.filter((_, position) => position !== index))} /></div>
+        <Textarea aria-label={`${label} ${index + 1}`} rows={2} value={richTextPlain(value)} onChange={event => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} />
       </div>)}
       <Button type="button" variant="outline" size="sm" onClick={() => onChange([...values, ''])}>Add item</Button>
     </> : values.length ? <ol>{values.map((value, index) => <li key={index}><RichText value={value} /></li>)}</ol> : <p className="muted">—</p>}
@@ -62,11 +64,10 @@ export function TestCasePanel({ allRequirements = [], onRequirementsChange, requ
       <Conditions label="Preconditions / Передумови" values={item.preconditions} editing={editing} onChange={preconditions => patch({ preconditions })} />
       <section className="tc-section" aria-label="Steps"><h3>Steps</h3>
         {steps.map((step, index) => <div key={step.id} className="tc-step">
-          <h4>Step {index + 1}</h4>
+          <div className="tc-item-heading"><h4>Step {index + 1}</h4>{editing && <OrderButtons index={index} count={steps.length} label={`step ${index + 1}`} onMove={direction => patch({ steps: moveItem(steps, index, direction).map((entry, sortOrder) => ({ ...entry, sortOrder })) })} onDelete={() => patch({ steps: steps.filter(entry => entry.id !== step.id).map((entry, sortOrder) => ({ ...entry, sortOrder })) })} />}</div>
           {editing ? <>
-            <div className="field"><label id={`action-${step.id}-label`} htmlFor={`action-${step.id}`}>Action</label><RichTextEditor id={`action-${step.id}`} rows={3} value={step.action} onValueChange={value => patch({ steps: steps.map(entry => entry.id === step.id ? { ...entry, action: value } : entry) })} /></div>
-            <div className="field"><label id={`expected-${step.id}-label`} htmlFor={`expected-${step.id}`}>Expected / Очікуваний результат</label><RichTextEditor id={`expected-${step.id}`} rows={3} value={step.expectedResult} onValueChange={value => patch({ steps: steps.map(entry => entry.id === step.id ? { ...entry, expectedResult: value } : entry) })} /></div>
-            <OrderButtons index={index} count={steps.length} label={`step ${index + 1}`} onMove={direction => patch({ steps: moveItem(steps, index, direction).map((entry, sortOrder) => ({ ...entry, sortOrder })) })} onDelete={() => patch({ steps: steps.filter(entry => entry.id !== step.id).map((entry, sortOrder) => ({ ...entry, sortOrder })) })} />
+            <div className="field"><label id={`action-${step.id}-label`} htmlFor={`action-${step.id}`}>Action</label><Textarea id={`action-${step.id}`} rows={2} value={richTextPlain(step.action)} onChange={event => patch({ steps: steps.map(entry => entry.id === step.id ? { ...entry, action: event.target.value } : entry) })} /></div>
+            <div className="field"><label id={`expected-${step.id}-label`} htmlFor={`expected-${step.id}`}>Expected / Очікуваний результат</label><Textarea id={`expected-${step.id}`} rows={2} value={richTextPlain(step.expectedResult)} onChange={event => patch({ steps: steps.map(entry => entry.id === step.id ? { ...entry, expectedResult: event.target.value } : entry) })} /></div>
           </> : <><h5>Action</h5><RichText value={step.action} /><h5>Expected / Очікуваний результат</h5><RichText value={step.expectedResult} /></>}
         </div>)}
         {editing ? <Button type="button" variant="outline" size="sm" onClick={() => patch({ steps: [...steps, { id: crypto.randomUUID(), action: '', expectedResult: '', sortOrder: steps.length }] })}>+ Add step</Button> : !steps.length && <p className="muted">—</p>}

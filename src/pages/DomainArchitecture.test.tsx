@@ -13,7 +13,11 @@ beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve(
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const change = (name: string, value: string) => fireEvent.change(screen.getByLabelText(name), { target: { value } })
-const selectArea = (name: string) => { fireEvent.click(screen.getByRole('combobox', { name: 'Area' })); click(name) }
+const selectArea = (name: string) => {
+  const select = screen.getByRole('combobox', { name: 'Area' }) as HTMLSelectElement
+  const value = (within(select).getByRole('option', { name }) as HTMLOptionElement).value
+  fireEvent.change(select, { target: { value } })
+}
 
 it('shares an Area across Checklist, Defect, Audit, Requirement, Test Case and Coverage', async () => {
   await renderAuthenticatedApp()
@@ -23,22 +27,16 @@ it('shares an Area across Checklist, Defect, Audit, Requirement, Test Case and C
   const areaId = (screen.getByRole('option', { name: 'Auth' }) as HTMLOptionElement).value
   change('Area', areaId); click('Save Defect')
   click('Audit / Аудит'); click('AUDIT-001'); click('+ Add audit finding'); change('Назва', 'Area ownership finding'); selectArea('Auth')
-  // Rename through Audit; every other module keeps the same Area ID.
-  fireEvent.click(screen.getByRole('combobox', { name: 'Area' }))
-  click('Видалити Area Auth')
-  expect(screen.getByRole('alert')).toBeTruthy()
-  click('Перейменувати Area Auth'); change('Нова назва', 'Shared Authentication'); click('Зберегти назву')
-  fireEvent.keyDown(screen.getByLabelText('Додати Area'), { key: 'Escape' })
   click('Створити зауваження')
   for (const page of ['Requirements / Вимоги', 'Test Cases / Тест-кейси', 'Checklists / Чеклісти', 'Defects / Дефекти']) {
     click(page)
-    expect(within(screen.getByRole('table')).getAllByText('Shared Authentication').length).toBeGreaterThan(0)
+    expect(within(screen.getByRole('table')).getAllByText('Auth').length).toBeGreaterThan(0)
   }
   click('Coverage / Покриття')
-  expect(within(screen.getByRole('table', { name: 'Requirement coverage' })).getAllByText('Shared Authentication').length).toBeGreaterThan(0)
+  expect(within(screen.getByRole('table', { name: 'Requirement coverage' })).getAllByText('Auth').length).toBeGreaterThan(0)
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name: 'QP Notes' }))
-  expect(screen.queryByText('Shared Authentication')).toBeNull()
+  expect(screen.queryByText('Auth')).toBeNull()
 })
 
 it('Audit scopes reads itself even when its parent supplies mixed project data', () => {
