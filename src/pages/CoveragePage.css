@@ -1,3 +1,11 @@
 .coverage-summary { font-size: 12px; margin-bottom: 16px; }
+.coverage-page .tc-panel { overflow-x: hidden; }
+.coverage-page .tc-panel .tc-section { overflow-x: visible; }
+.coverage-page .tc-panel .tc-table { width: 100%; min-width: 0; table-layout: fixed; font-size: 11px; }
+.coverage-page .tc-panel .tc-table th,
+.coverage-page .tc-panel .tc-table td { padding: 6px 3px; vertical-align: top; }
+.coverage-page .tc-panel .tc-table th:nth-child(1) { width: 34%; }
+.coverage-page .tc-panel .tc-table th:nth-child(2),
+.coverage-page .tc-panel .tc-table th:nth-child(3),
+.coverage-page .tc-panel .tc-table th:nth-child(4) { width: 20%; }
 .coverage-page .tc-panel .tc-table th:last-child { width: 34px; }
-.coverage-page .tc-panel .tc-table { font-size: 11px; }
