@@ -36,6 +36,9 @@
 .tc-table td, .tc-table th { padding: 8px 4px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .tc-table tbody tr { cursor: pointer; }
 .tc-table tbody tr:hover, .tc-selected { background: var(--muted); }
+.tc-table.action-table { min-width: 1120px; }
+.table-row-actions { display: flex; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; }
+.table-row-actions > button:not([data-slot='dropdown-menu-trigger']) { max-width: 190px; height: auto; min-height: 28px; padding-block: 4px; white-space: normal; text-align: left; line-height: 1.2; }
 .tc-open { text-align: left; cursor: pointer; overflow-wrap: anywhere; font-family: monospace; }
 .tc-open:focus-visible { outline: 2px solid var(--ring); }
 .tc-panel { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; border-left: 1px solid var(--border); padding: 0 4px 0 24px; overflow-wrap: anywhere; }
@@ -55,6 +58,25 @@
 .tc-panel-actions, .tc-order { display: flex; gap: 8px; flex-wrap: wrap; }
 .tc-order { justify-content: flex-end; margin-top: 4px; }
 .tc-form section > button { justify-self: start; }
+.domain-badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; min-height: 22px; padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px; font-size: 11px; font-weight: 650; line-height: 1.35; white-space: normal; }
+.result-badge-pass, .defect-status-closed { color: var(--qa-green); background: color-mix(in oklab, var(--qa-green) 16%, var(--background)); }
+.result-badge-fail, .defect-status-rejected { color: var(--qa-red); background: color-mix(in oklab, var(--qa-red) 14%, var(--background)); }
+.result-badge-blocked, .defect-status-in-progress { color: var(--qa-amber); background: color-mix(in oklab, var(--qa-amber) 17%, var(--background)); }
+.result-badge-skipped, .defect-status-ready-retest { color: var(--qa-purple); background: color-mix(in oklab, var(--qa-purple) 16%, var(--background)); }
+.result-badge-not-checked, .defect-status-new { color: var(--qa-blue); background: color-mix(in oklab, var(--qa-blue) 14%, var(--background)); }
+.defect-status-open { color: var(--qa-cyan); background: color-mix(in oklab, var(--qa-cyan) 15%, var(--background)); }
+.result-badge-not-run, .result-badge-na, .defect-status-duplicate { color: var(--qa-neutral); background: color-mix(in oklab, var(--muted) 82%, var(--background)); }
+.badge-list { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.defects-table { min-width: 0; table-layout: auto; }
+.defects-table td, .defects-table th { padding: 6px 3px; }
+.defects-table .domain-badge, .defects-table .table-row-actions > button { white-space: nowrap; }
+.defects-table .table-row-actions > button { max-width: none; }
+.defects-table th:last-child, .defects-table td:last-child { width: 1%; }
+.test-suite-panel .tc-list, .test-suite-panel .tc-section { overflow-x: visible; }
+.test-suite-panel .tc-table { min-width: 0; table-layout: fixed; }
+.test-suite-panel .tc-table td, .test-suite-panel .tc-table th { padding-inline: 3px; }
+.test-suite-results { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.test-suite-results .domain-badge { flex: 0 0 auto; padding-inline: 6px; white-space: nowrap; }
 
 @media (max-width: 1000px) {
   .tc-layout.tc-with-panel { grid-template-columns: minmax(0, 1fr); }

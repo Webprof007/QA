@@ -45,7 +45,7 @@ it('shares an Area across Checklist, Defect, Audit, Requirement, Test Case and C
 it('Audit scopes reads itself even when its parent supplies mixed project data', () => {
   const seed = createProjectAreaData()
   const other = { ...seed.audit.voicli[0], projectId: 'other', title: 'Foreign finding' }
-  render(<EvidenceContext.Provider value={{ items: [], owners: { testRuns: { runs: [], executions: [] }, smoke: createSmokeMockData([]), defects: [], retests: [], audits: initialAudits, auditFindings: [other, ...seed.audit.voicli] }, urls: createEvidenceUrls(), replace: vi.fn() }}><AuditFindingsPage auditId="audit-voicli-demo" readOnly={false} projectId="voicli" items={[other, ...seed.audit.voicli]} auditAreas={seed.areas} auditTypes={[]} onAreasChange={vi.fn()} onTypesChange={vi.fn()} onDeleteItem={() => null} /></EvidenceContext.Provider>)
+  render(<EvidenceContext.Provider value={{ items: [], owners: { testRuns: { runs: [], executions: [] }, smoke: createSmokeMockData([]), defects: [], retests: [], audits: initialAudits, auditFindings: [other, ...seed.audit.voicli] }, urls: createEvidenceUrls(), replace: vi.fn(), upload: vi.fn(), addLink: vi.fn(), remove: vi.fn() }}><AuditFindingsPage auditId="audit-voicli-demo" readOnly={false} projectId="voicli" items={[other, ...seed.audit.voicli]} auditAreas={seed.areas} auditTypes={[]} onAreasChange={vi.fn()} onTypesChange={vi.fn()} onDeleteItem={() => null} /></EvidenceContext.Provider>)
   expect(screen.queryByText('Foreign finding')).toBeNull()
   expect(document.querySelectorAll('.audit-compact-row')).toHaveLength(4)
   fireEvent.click(document.querySelector('.audit-compact-row')!)

@@ -80,6 +80,7 @@ export function AppSidebar({
           <p className="sidebar-group-label">PLANNING</p>
           {navigationItem('Requirements')}
           {navigationItem('Test Plan')}
+          {navigationItem('Coverage')}
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">TEST DESIGN</p>
@@ -87,7 +88,6 @@ export function AppSidebar({
           {navigationItem('Test Suites')}
           {navigationItem('Checklists')}
           {navigationItem('Smoke')}
-          {navigationItem('Coverage')}
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">EXECUTION</p>

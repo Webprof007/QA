@@ -1,8 +1,10 @@
+import { priorityLabel } from '@/lib/domainLabels'
+
 export const priorities = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'critical', label: priorityLabel('critical') },
+  { value: 'high', label: priorityLabel('high') },
+  { value: 'medium', label: priorityLabel('medium') },
+  { value: 'low', label: priorityLabel('low') },
 ]
 export const statuses = [
   { value: 'active', label: 'Active' },

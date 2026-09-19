@@ -1,5 +1,5 @@
-import { ApiError, apiRequest } from './api'
-import type { Build, Checklist, ChecklistRun, Defect, DefectRetest, DefectSourceLink, Environment, Project, ProjectArea, Release, Requirement, RequirementTestCaseLink, SmokeExecution, SmokePrerequisite, SmokeRun, SmokeRunPrerequisite, SmokeSuite, SmokeSuiteTestCaseLink, TestCase, TestCaseDictionaryValue, TestCaseSnapshot, TestExecution, TestPlan, TestRun, TestSuite, TestSuiteTestCaseLink } from '@/types'
+import { ApiError, apiFormRequest, apiRequest, apiUrl } from './api'
+import type { Build, Checklist, ChecklistRun, Defect, DefectRetest, DefectSourceLink, Environment, EvidenceItem, EvidenceOwner, EvidenceOwnerType, Project, ProjectArea, Release, Requirement, RequirementTestCaseLink, SmokeExecution, SmokePrerequisite, SmokeRun, SmokeRunPrerequisite, SmokeSuite, SmokeSuiteTestCaseLink, TestCase, TestCaseDictionaryValue, TestCaseSnapshot, TestExecution, TestPlan, TestRun, TestSuite, TestSuiteTestCaseLink } from '@/types'
 
 type BackendProject = { id: number; name: string; description: string | null; createdByUserId: number | null; createdAt: string; updatedAt: string }
 type BackendArea = { id: number; projectId: number; name: string; createdAt: string; updatedAt: string }
@@ -30,6 +30,10 @@ type BackendSmokePrerequisite = { id: number; projectId: number; smokeSuiteId?: 
 type BackendSmokeRun = Omit<SmokeRun, 'id' | 'projectId' | 'suiteId' | 'environmentId' | 'buildId'> & { id: number; projectId: number; suiteId: number; environmentId: number | null; buildId: number | null }
 type BackendSmokeRunPrerequisite = Omit<SmokeRunPrerequisite, 'id' | 'projectId' | 'runId' | 'sourcePrerequisiteId'> & { id: number; projectId: number; runId: number; sourcePrerequisiteId: number | null }
 type BackendSmokeExecution = Omit<SmokeExecution, 'id' | 'projectId' | 'runId' | 'testCaseId' | 'testCaseSnapshot'> & { id: number; projectId: number; runId: number; testCaseId: number; testCaseSnapshot: BackendSnapshot }
+type BackendEvidenceItem = {
+  id: number; projectId: number; ownerType: EvidenceOwnerType; ownerId: number; kind: EvidenceItem['kind']; name: string
+  mimeType?: string | null; sizeBytes?: number | null; url?: string | null; createdByUserId?: number | null; createdAt: string
+}
 
 const id = (value: number) => String(value)
 export function backendId(value: string) {
@@ -91,6 +95,16 @@ export const adaptSmokePrerequisite = (value: BackendSmokePrerequisite): SmokePr
 export const adaptSmokeRun = (value: BackendSmokeRun): SmokeRun => ({ ...value, id: id(value.id), projectId: id(value.projectId), suiteId: id(value.suiteId), environmentId: optionalId(value.environmentId), buildId: optionalId(value.buildId) })
 export const adaptSmokeRunPrerequisite = (value: BackendSmokeRunPrerequisite): SmokeRunPrerequisite => ({ ...value, id: id(value.id), projectId: id(value.projectId), runId: id(value.runId), sourcePrerequisiteId: optionalId(value.sourcePrerequisiteId) })
 export const adaptSmokeExecution = (value: BackendSmokeExecution): SmokeExecution => ({ ...value, id: id(value.id), projectId: id(value.projectId), runId: id(value.runId), testCaseId: id(value.testCaseId), testCaseSnapshot: adaptSnapshot(value.testCaseSnapshot) })
+export function evidenceContentUrl(projectId: string, evidenceId: string) {
+  return apiUrl(`/evidence/?action=content&projectId=${encodeURIComponent(String(backendId(projectId)))}&id=${encodeURIComponent(String(backendId(evidenceId)))}`)
+}
+export const adaptEvidenceItem = (value: BackendEvidenceItem): EvidenceItem => ({
+  id: id(value.id), projectId: id(value.projectId), ownerType: value.ownerType, ownerId: id(value.ownerId), kind: value.kind,
+  name: value.name, mimeType: value.mimeType ?? undefined, sizeBytes: value.sizeBytes ?? undefined,
+  // File bytes always stay behind the protected content endpoint. Links retain their supplied URL.
+  url: value.kind === 'file' ? evidenceContentUrl(id(value.projectId), id(value.id)) : value.url ?? '',
+  createdByUserId: value.createdByUserId ?? undefined, createdAt: value.createdAt,
+})
 
 export async function loadProjects(signal?: AbortSignal) { return (await apiRequest<{ success: true; projects: BackendProject[] }>('/projects/', { signal })).projects.map(adaptProject) }
 export async function createProject(name: string, description = '') { return adaptProject((await apiRequest<{ success: true; project: BackendProject }>('/projects/', { method: 'POST', body: { name, description } })).project) }
@@ -231,3 +245,21 @@ export async function loadSmokeRunPrerequisites(projectId: string, signal?: Abor
 export async function saveSmokeRunPrerequisiteApi(projectId: string, value: SmokeRunPrerequisite) { return adaptSmokeRunPrerequisite((await apiRequest<{ success: true; prerequisite: BackendSmokeRunPrerequisite }>('/smoke-run-prerequisites/', { method: 'PATCH', body: { projectId: backendId(projectId), id: backendId(value.id), result: value.result, comment: value.comment } })).prerequisite) }
 export async function loadSmokeExecutions(projectId: string, signal?: AbortSignal) { return (await apiRequest<{ success: true; executions: BackendSmokeExecution[] }>(`/smoke-executions/${query(projectId)}`, { signal })).executions.map(adaptSmokeExecution) }
 export async function saveSmokeExecutionApi(projectId: string, executionId: string, input: Pick<SmokeExecution, 'result' | 'actualResult' | 'comment' | 'evidenceNote'>) { return adaptSmokeExecution((await apiRequest<{ success: true; execution: BackendSmokeExecution }>('/smoke-executions/', { method: 'PATCH', body: { projectId: backendId(projectId), id: backendId(executionId), ...input } })).execution) }
+
+export async function loadEvidenceItems(projectId: string, signal?: AbortSignal) {
+  return (await apiRequest<{ success: true; evidenceItems: BackendEvidenceItem[] }>(`/evidence/${query(projectId)}`, { signal })).evidenceItems.map(adaptEvidenceItem)
+}
+export async function uploadEvidenceFile(owner: EvidenceOwner, file: File) {
+  const form = new FormData()
+  form.append('projectId', String(backendId(owner.projectId)))
+  form.append('ownerType', owner.ownerType)
+  form.append('ownerId', String(backendId(owner.ownerId)))
+  form.append('file', file)
+  return adaptEvidenceItem((await apiFormRequest<{ success: true; evidenceItem: BackendEvidenceItem }>('/evidence/?action=upload', form)).evidenceItem)
+}
+export async function createEvidenceLink(owner: EvidenceOwner, name: string, url: string) {
+  return adaptEvidenceItem((await apiRequest<{ success: true; evidenceItem: BackendEvidenceItem }>('/evidence/?action=link', { method: 'POST', body: { projectId: backendId(owner.projectId), ownerType: owner.ownerType, ownerId: backendId(owner.ownerId), name, url } })).evidenceItem)
+}
+export async function deleteEvidenceItem(projectId: string, evidenceId: string) {
+  await apiRequest('/evidence/', { method: 'DELETE', body: { projectId: backendId(projectId), id: backendId(evidenceId) } })
+}

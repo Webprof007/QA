@@ -8,9 +8,12 @@ import {
   deleteProject,
   deleteRequirement,
   deleteRequirementTestCaseLink,
+  createEvidenceLink,
+  deleteEvidenceItem,
   deleteTestCase,
   deleteTestSuite,
   loadAreas,
+  loadEvidenceItems,
   loadProjects,
   loadRequirements,
   loadRequirementTestCaseLinks,
@@ -26,6 +29,7 @@ import {
   saveTestPlan,
   saveTestSuite,
   saveTestSuiteTestCaseLinks,
+  uploadEvidenceFile,
 } from './qaApi'
 import type { Requirement, TestCase, TestPlan, TestSuite } from '@/types'
 
@@ -189,5 +193,32 @@ describe('QA API boundary', () => {
   it('recognizes 401 as an API error for the existing auth flow', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ success: false, message: 'Unauthorized' }, 401)))
     await expect(loadProjects()).rejects.toMatchObject({ status: 401, message: 'Unauthorized' })
+  })
+
+  it('loads, uploads, links and deletes Evidence through the protected project API', async () => {
+    const evidence = { id: 101, projectId: 3, ownerType: 'testExecution', ownerId: 51, kind: 'file', name: 'failure.png', mimeType: 'image/png', sizeBytes: 3, createdByUserId: 42, createdAt: '2026-09-19T00:00:00Z' }
+    const link = { id: 102, projectId: 3, ownerType: 'defect', ownerId: 61, kind: 'link', name: 'Issue', url: 'https://example.com/issue', createdAt: '2026-09-19T00:00:00Z' }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(json({ success: true, evidenceItems: [evidence] }))
+      .mockResolvedValueOnce(json({ success: true, evidenceItem: evidence }, 201))
+      .mockResolvedValueOnce(json({ success: true, evidenceItem: link }, 201))
+      .mockResolvedValueOnce(json({ success: true, evidenceItems: [evidence, link] }))
+      .mockResolvedValueOnce(json({ success: true }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(loadEvidenceItems('3')).resolves.toEqual([expect.objectContaining({ id: '101', projectId: '3', ownerId: '51', url: expect.stringMatching(/action=content.*projectId=3.*id=101/) })])
+    await uploadEvidenceFile({ projectId: '3', ownerType: 'testExecution', ownerId: '51' }, new File(['png'], 'failure.png', { type: 'image/png' }))
+    await createEvidenceLink({ projectId: '3', ownerType: 'defect', ownerId: '61' }, 'Issue', 'https://example.com/issue')
+    await expect(loadEvidenceItems('3')).resolves.toEqual([expect.objectContaining({ id: '101' }), expect.objectContaining({ id: '102', url: 'https://example.com/issue' })])
+    await deleteEvidenceItem('3', '101')
+    expect(fetch.mock.calls[1][0]).toMatch(/\/evidence\/\?action=upload$/)
+    expect(fetch.mock.calls[1][1]).toEqual(expect.objectContaining({ credentials: 'include', body: expect.any(FormData) }))
+    expect((fetch.mock.calls[1][1].body as FormData).get('projectId')).toBe('3')
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ projectId: 3, ownerType: 'defect', ownerId: 61, name: 'Issue', url: 'https://example.com/issue' })
+    expect(JSON.parse(fetch.mock.calls[4][1].body)).toEqual({ projectId: 3, id: 101 })
+  })
+
+  it('does not create a local evidence item when the backend rejects an upload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ success: false, message: 'Owner is read-only' }, 422)))
+    await expect(uploadEvidenceFile({ projectId: '3', ownerType: 'smokeExecution', ownerId: '51' }, new File(['x'], 'log.txt'))).rejects.toMatchObject({ status: 422, message: 'Owner is read-only' })
   })
 })

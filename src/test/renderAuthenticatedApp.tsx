@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
-import type { Checklist, ChecklistRun, DefectRetest, DefectsState, Project, ProjectArea, ProjectSetupState, Requirement, RequirementTestCaseLink, SmokeState, TestCase, TestCaseDictionaryValue, TestPlan, TestRunsState, TestSuite, TestSuiteTestCaseLink } from '@/types'
+import type { Checklist, ChecklistRun, DefectRetest, DefectsState, EvidenceItem, EvidenceOwner, Project, ProjectArea, ProjectSetupState, Requirement, RequirementTestCaseLink, SmokeState, TestCase, TestCaseDictionaryValue, TestPlan, TestRunsState, TestSuite, TestSuiteTestCaseLink } from '@/types'
 
 const apiFixture = vi.hoisted<{ reset: () => void }>(() => ({ reset: () => undefined }))
 
@@ -10,7 +10,7 @@ vi.mock('@/lib/qaApi', async () => {
     import('@/data/testSuitesMockData'), import('@/data/projectSetupMockData'), import('@/data/smokeMockData'), import('@/data/defectsMockData'),
   ])
   const [{ createTestRun, changeRunStatus, saveExecution }, { deleteSmokeSuite, createSmokeRun, changeSmokeRunStatus, saveSmokeExecution, saveSmokeRunPrerequisite }, { saveChecklistRun }, { retestSource }] = await Promise.all([import('@/lib/testRuns'), import('@/lib/smoke'), import('@/lib/checklists'), import('@/lib/defectRetests')])
-  let projectItems: Project[] = [], areas: ProjectArea[] = [], requirements: Requirement[] = [], cases: TestCase[] = [], types: TestCaseDictionaryValue[] = [], plans: TestPlan[] = [], links: RequirementTestCaseLink[] = [], suites: TestSuite[] = [], suiteLinks: TestSuiteTestCaseLink[] = [], setup: ProjectSetupState, testRuns: TestRunsState, defects: DefectsState, retests: DefectRetest[], checklists: Checklist[], checklistRuns: ChecklistRun[], smoke: SmokeState
+  let projectItems: Project[] = [], areas: ProjectArea[] = [], requirements: Requirement[] = [], cases: TestCase[] = [], types: TestCaseDictionaryValue[] = [], plans: TestPlan[] = [], links: RequirementTestCaseLink[] = [], suites: TestSuite[] = [], suiteLinks: TestSuiteTestCaseLink[] = [], setup: ProjectSetupState, testRuns: TestRunsState, defects: DefectsState, retests: DefectRetest[], checklists: Checklist[], checklistRuns: ChecklistRun[], smoke: SmokeState, evidence: EvidenceItem[] = []
   const reset = () => {
     const seed = createProjectAreaData()
     projectItems = structuredClone(projects)
@@ -30,6 +30,7 @@ vi.mock('@/lib/qaApi', async () => {
     checklists = []
     checklistRuns = []
     smoke = createSmokeMockData(cases)
+    evidence = []
   }
   apiFixture.reset = reset
   reset()
@@ -133,6 +134,18 @@ vi.mock('@/lib/qaApi', async () => {
     updateSmokeRunApi: async (projectId: string, id: string, status: 'Draft' | 'In Progress' | 'Completed') => { smoke = changeSmokeRunStatus(smoke, projectId, id, status === 'Draft' ? 'In Progress' : status); return structuredClone(smoke.runs.find(item => item.id === id)!) },
     saveSmokeExecutionApi: async (projectId: string, id: string, input: Parameters<typeof saveSmokeExecution>[3]) => { smoke = saveSmokeExecution(smoke, projectId, id, input, 42); return structuredClone(smoke.executions.find(item => item.id === id)!) },
     saveSmokeRunPrerequisiteApi: async (projectId: string, item: SmokeState['runPrerequisites'][number]) => { smoke = saveSmokeRunPrerequisite(smoke, projectId, item.id, item); return structuredClone(smoke.runPrerequisites.find(value => value.id === item.id)!) },
+    loadEvidenceItems: async (projectId: string) => structuredClone(evidence.filter(item => item.projectId === projectId)),
+    uploadEvidenceFile: async (owner: EvidenceOwner, file: File) => {
+      const item: EvidenceItem = { id: crypto.randomUUID(), ...owner, kind: 'file', name: file.name, mimeType: file.type, sizeBytes: file.size, url: `https://api.test/evidence/?action=content&projectId=${owner.projectId}`, createdAt: new Date().toISOString(), createdByUserId: 42 }
+      evidence = [...evidence, item]
+      return structuredClone(item)
+    },
+    createEvidenceLink: async (owner: EvidenceOwner, name: string, url: string) => {
+      const item: EvidenceItem = { id: crypto.randomUUID(), ...owner, kind: 'link', name, url, createdAt: new Date().toISOString(), createdByUserId: 42 }
+      evidence = [...evidence, item]
+      return structuredClone(item)
+    },
+    deleteEvidenceItem: async (projectId: string, id: string) => { evidence = evidence.filter(item => item.projectId !== projectId || item.id !== id) },
   }
 })
 

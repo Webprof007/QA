@@ -12,9 +12,9 @@ it('navigates through QA sections with a single authenticated account', async ()
   const nav = within(screen.getByRole('navigation', { name: 'Розділи застосунку' }))
   const groups = ['PLANNING', 'TEST DESIGN', 'EXECUTION', 'ANALYSIS', 'PROJECT']
   expect([...screen.getByRole('navigation').querySelectorAll('.sidebar-group-label')].map(label => label.textContent)).toEqual(groups)
-  const pages = ['Requirements / Вимоги', 'Test Plan / План тестування', 'Test Cases / Тест-кейси', 'Test Suites / Набори тестів', 'Checklists / Чеклісти', 'Smoke / Смоук-тестування', 'Coverage / Покриття', 'Test Runs / Запуски тестів', 'Defects / Дефекти', 'Audit / Аудит', 'Settings / Налаштування']
+  const pages = ['Requirements / Вимоги', 'Test Plan / План тестування', 'Coverage / Покриття', 'Test Cases / Тест-кейси', 'Test Suites / Набори тестів', 'Checklists / Чеклісти', 'Smoke / Смоук-тестування', 'Test Runs / Запуски тестів', 'Defects / Дефекти', 'Audit / Аудит', 'Settings / Налаштування']
   expect(nav.getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(pages)
-  expect([...screen.getByRole('navigation').querySelectorAll('.sidebar-group')].map(group => group.querySelectorAll('button').length)).toEqual([2, 5, 2, 1, 1])
+  expect([...screen.getByRole('navigation').querySelectorAll('.sidebar-group')].map(group => group.querySelectorAll('button').length)).toEqual([3, 4, 2, 1, 1])
   for (const name of pages) {
     const button = nav.getByRole('button', { name })
     const [label, sublabel] = name.split(' / ')

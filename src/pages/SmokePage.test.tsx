@@ -37,7 +37,7 @@ describe('Normalized Smoke suites and runs', () => {
     await open(); await createRun()
     expect(screen.getByText('Draft')).toBeTruthy()
     expect(screen.getByRole('button', { name: '← Smoke Suite' }).closest('.account-bar')).toBeTruthy()
-    expect(executions().getAllByText('Not Run')).toHaveLength(2)
+    expect(executions().getAllByText('Not Run / Не виконано')).toHaveLength(2)
     change('Prerequisite result 1', 'Pass'); change('Prerequisite comment 1', 'API healthy')
     click('Start Run'); expect(await screen.findByText('In Progress')).toBeTruthy()
     click('TC-001'); change('Result', 'Pass'); click('Save result')

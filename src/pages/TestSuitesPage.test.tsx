@@ -36,7 +36,7 @@ describe('General Test Suites UI', () => {
     await screen.findByText('Draft', { selector: 'span' })
     expect(screen.getByLabelText('Source Suite').textContent).toContain('TS-001 — Regression')
     expect(screen.getByLabelText('Run progress').textContent).toContain('Progress: 0 / 3')
-    const codes = within(screen.getByRole('table')).getAllByRole('button').map(button => button.textContent)
+    const codes = [...screen.getByRole('table').querySelectorAll<HTMLButtonElement>('.tc-open')].map(button => button.textContent)
     expect(codes).toEqual(['TC-001', 'TC-004', 'TC-002'])
     click('View Suite'); expect(within(screen.getByRole('region', { name: 'Source test runs' })).getByRole('button', { name: 'Regression 2.6' })).toBeTruthy()
     click('Edit Suite'); change('Name', 'Changed suite'); click('Remove TC-004'); click('Save Suite')

@@ -1,5 +1,9 @@
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://api.smart-it.site').replace(/\/$/, '')
 
+export function apiUrl(path: string) {
+  return `${API_BASE_URL}${path}`
+}
+
 export class ApiError extends Error {
   status: number
   errors?: Record<string, string>
@@ -13,7 +17,7 @@ export class ApiError extends Error {
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(apiUrl(path), {
       method: options.method ?? 'GET',
       credentials: 'include',
       cache: 'no-store',
@@ -23,6 +27,22 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
     })
   } catch (error) {
     if (options.signal?.aborted) throw error
+    throw new ApiError('Не вдалося з’єднатися із сервером. Спробуйте ще раз.')
+  }
+  const data = await response.json().catch(() => null)
+  if (!response.ok || !data || data.success !== true) {
+    throw new ApiError(typeof data?.message === 'string' ? data.message : 'Не вдалося виконати запит. Спробуйте ще раз.', response.status, data?.errors && typeof data.errors === 'object' ? data.errors : undefined)
+  }
+  return data as T
+}
+
+/** Multipart requests deliberately do not set Content-Type: the browser adds the boundary. */
+export async function apiFormRequest<T>(path: string, form: FormData, signal?: AbortSignal): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(apiUrl(path), { method: 'POST', credentials: 'include', cache: 'no-store', body: form, signal })
+  } catch (error) {
+    if (signal?.aborted) throw error
     throw new ApiError('Не вдалося з’єднатися із сервером. Спробуйте ще раз.')
   }
   const data = await response.json().catch(() => null)

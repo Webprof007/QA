@@ -109,7 +109,7 @@ describe('Project Test Cases', () => {
   it('combines Area, Priority, Type and Status with case-insensitive code, id and title search', async () => {
     await start()
     await menu('Area', 'Auth', 'menuitemcheckbox')
-    await menu('Priority', 'High', 'menuitemcheckbox')
+    await menu('Priority', 'High / Високий', 'menuitemcheckbox')
     await menu('Type', 'Functional', 'menuitemcheckbox')
     await menu('Status', 'Active', 'menuitemcheckbox')
     expect(caseRows()).toHaveLength(1)

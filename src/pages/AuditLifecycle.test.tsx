@@ -24,7 +24,7 @@ describe('Audit sessions UI', () => {
     click('Edit Audit'); change('Title / Назва', 'Updated session'); click('Save Audit')
     expect(screen.getByRole('heading', { name: 'AUDIT-002 — Updated session' })).toBeTruthy()
     click('+ Add audit check'); change('Criterion / Критерій', 'Focus is visible'); change('Result', 'Fail'); change('Comment', 'Low contrast'); click('Save Check')
-    expect(within(screen.getByRole('region', { name: 'Audit checks' })).getByText('Fail')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Audit checks' })).getByText('Fail / Не пройдено')).toBeTruthy()
     click('+ Add audit finding'); change('Назва', 'Session-specific finding'); click('Створити зауваження')
     expect(findings().getByText('AUD-005')).toBeTruthy()
     click('← Audits'); click('AUDIT-001')

@@ -1,4 +1,5 @@
 import type { AuditDictionaryValue, AuditFinding, AuditFindingStatus, AuditType, AuditSeverity, Audit } from '@/types'
+import { severityLabel } from '@/lib/domainLabels'
 
 export const auditStatuses: { value: AuditFindingStatus; label: string }[] = [
   { value: 'open', label: 'Open' },
@@ -8,10 +9,10 @@ export const auditStatuses: { value: AuditFindingStatus; label: string }[] = [
   { value: 'wont-fix', label: "Won’t fix" },
 ]
 export const auditSeverities: { value: AuditSeverity; label: string }[] = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'critical', label: severityLabel('critical') },
+  { value: 'high', label: severityLabel('high') },
+  { value: 'medium', label: severityLabel('medium') },
+  { value: 'low', label: severityLabel('low') },
 ]
 const seedTypes: { value: AuditType; label: string }[] = [
   { value: 'bug', label: 'Bug' },

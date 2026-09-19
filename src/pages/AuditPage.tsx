@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AuditFindingsPage, type AuditFindingsProps } from './AuditFindingsPage'
 import type { Audit, AuditCheck, AuditState } from '@/types'
+import { resultLabel } from '@/lib/domainLabels'
 import './AuditPage.css'
 
 type Props = Omit<AuditFindingsProps, 'auditId' | 'readOnly' | 'items' | 'onDeleteItem'> & {
@@ -62,10 +63,10 @@ export function AuditPage({ data, onSaveAudit, onTransition, onSaveCheck, onDele
       {readOnly && <p className="muted">Завершений Audit: історичні дані доступні лише для читання.</p>}
       {confirming && <section role="alert"><p>Завершити Audit? Неперевірених критеріїв: {checks.filter(item => item.result === 'Not Checked').length}. Незбережені чернетки зауважень буде відкинуто. Після завершення зміни неможливі.</p><Button onClick={() => transition('complete')}>Підтвердити завершення Audit</Button><Button variant="ghost" onClick={() => setConfirming(false)}>Скасувати завершення</Button></section>}
       <section aria-label="Audit checks"><div className="tc-toolbar"><h2>Checks / Критерії перевірки</h2>{!readOnly && <AddEntityButton entity="audit check" onClick={() => setCheck({ id: crypto.randomUUID(), projectId, auditId: selected.id, criterion: '', result: 'Not Checked', comment: '' })} />}</div>
-        <div className="tc-list"><table className="tc-table"><thead><tr><th>Criterion / Критерій</th><th>Result</th><th>Comment</th><th /></tr></thead><tbody>{checks.map(item => <tr key={item.id}><td>{item.criterion}</td><td>{item.result}</td><td>{item.comment || '—'}</td><td>{!readOnly && <Button size="sm" variant="ghost" onClick={() => setCheck({ ...item })} aria-label={'Edit check ' + item.criterion}>Edit</Button>}</td></tr>)}</tbody></table></div>
+        <div className="tc-list"><table className="tc-table"><thead><tr><th>Criterion / Критерій</th><th>Result</th><th>Comment</th><th /></tr></thead><tbody>{checks.map(item => <tr key={item.id}><td>{item.criterion}</td><td>{resultLabel(item.result)}</td><td>{item.comment || '—'}</td><td>{!readOnly && <Button size="sm" variant="ghost" onClick={() => setCheck({ ...item })} aria-label={'Edit check ' + item.criterion}>Edit</Button>}</td></tr>)}</tbody></table></div>
         {check && !readOnly && <form className="tc-section" aria-label="Audit check editor" onSubmit={event => { event.preventDefault(); const failure = onSaveCheck(check); setError(failure ?? ''); if (!failure) setCheck(null) }}>
           <label className="field">Criterion / Критерій<Textarea required value={check.criterion} onChange={event => setCheck({ ...check, criterion: event.target.value })} /></label>
-          <label className="field">Result<select className="audit-select" value={check.result} onChange={event => setCheck({ ...check, result: event.target.value as AuditCheck['result'] })}>{['Not Checked', 'Pass', 'Fail', 'N/A'].map(value => <option key={value}>{value}</option>)}</select></label>
+          <label className="field">Result<select className="audit-select" value={check.result} onChange={event => setCheck({ ...check, result: event.target.value as AuditCheck['result'] })}>{['Not Checked', 'Pass', 'Fail', 'N/A'].map(value => <option key={value} value={value}>{resultLabel(value)}</option>)}</select></label>
           <label className="field">Comment<Textarea value={check.comment} onChange={event => setCheck({ ...check, comment: event.target.value })} /></label>
           <Button type="submit">Save Check</Button><Button type="button" variant="ghost" onClick={() => setCheck(null)}>Cancel Check</Button>
         </form>}

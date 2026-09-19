@@ -21,7 +21,7 @@ import { TestCasesPage } from '@/pages/TestCasesPage'
 import { emptyTestCasesProject } from '@/data/testCasesMockData'
 import { createEvidenceUrls } from '@/lib/evidenceUrls'
 import { EvidenceContext } from '@/components/evidence/evidenceContext'
-import { ownerEvidence, replaceEvidence, commitRetestEvidence, type EvidenceOwners } from '@/lib/evidence'
+import { evidenceOwnerStatus, ownerEvidence, replaceEvidence, type EvidenceOwners } from '@/lib/evidence'
 import type { EvidenceItem } from '@/types'
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
 import { AppSidebar } from '@/components/AppSidebar'
@@ -45,7 +45,7 @@ import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
 import { createProject as createProjectApi, createRequirementTestCaseLink, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteRequirementTestCaseLink, deleteTestCase as deleteTestCaseApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, deleteTestSuite as deleteTestSuiteApi, loadAreas, loadProjects, loadRequirementTestCaseLinks, loadRequirements, loadTestCases, loadTestCaseTypes, loadTestPlans, loadTestSuiteTestCaseLinks, loadTestSuites, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCase as saveTestCaseApi, saveTestCaseType, saveTestPlan as saveTestPlanApi, saveTestSuite as saveTestSuiteApi, saveTestSuiteTestCaseLinks } from '@/lib/qaApi'
-import { createChecklistRunApi, createDefectRetestApi, createDefectSourceLinkApi, createSmokeRunApi, createTestRunApi, deleteBuildApi, deleteEnvironmentApi, deleteSmokeSuiteApi, loadBuilds, loadChecklistRunItems, loadChecklistRuns, loadChecklists, loadDefectRetests, loadDefectSourceLinks, loadDefects, loadEnvironments, loadReleases, loadSmokeExecutions, loadSmokePrerequisites, loadSmokeRunPrerequisites, loadSmokeRuns, loadSmokeSuiteLinks, loadSmokeSuites, loadTestExecutions, loadTestRuns, replaceSmokePrerequisitesApi, saveBuildApi, saveChecklistApi, saveChecklistRunItemApi, saveDefectApi, saveEnvironmentApi, saveReleaseApi, saveSmokeExecutionApi, saveSmokeRunPrerequisiteApi, saveSmokeSuiteApi, saveSmokeSuiteLinksApi, saveTestExecutionApi, updateChecklistRunApi, updateSmokeRunApi, updateTestRunStatusApi } from '@/lib/qaApi'
+import { createChecklistRunApi, createDefectRetestApi, createDefectSourceLinkApi, createEvidenceLink, createSmokeRunApi, createTestRunApi, deleteBuildApi, deleteEnvironmentApi, deleteEvidenceItem, deleteSmokeSuiteApi, loadBuilds, loadChecklistRunItems, loadChecklistRuns, loadChecklists, loadDefectRetests, loadDefectSourceLinks, loadDefects, loadEnvironments, loadEvidenceItems, loadReleases, loadSmokeExecutions, loadSmokePrerequisites, loadSmokeRunPrerequisites, loadSmokeRuns, loadSmokeSuiteLinks, loadSmokeSuites, loadTestExecutions, loadTestRuns, replaceSmokePrerequisitesApi, saveBuildApi, saveChecklistApi, saveChecklistRunItemApi, saveDefectApi, saveEnvironmentApi, saveReleaseApi, saveSmokeExecutionApi, saveSmokeRunPrerequisiteApi, saveSmokeSuiteApi, saveSmokeSuiteLinksApi, saveTestExecutionApi, updateChecklistRunApi, updateSmokeRunApi, updateTestRunStatusApi, uploadEvidenceFile } from '@/lib/qaApi'
 
 function lastPageFor(userId: number, projectKey: string, fallback: Page = 'Settings'): Page {
   try {
@@ -122,7 +122,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [evidenceUrls] = useState(createEvidenceUrls)
   const defectSources = { testRuns: testRunData, smoke, audits: auditData }
   const evidenceOwners: EvidenceOwners = { testRuns: testRunData, smoke, defects: defects.items, retests: defectRetests, audits: auditData.audits, auditFindings: auditData.findings }
-  useEffect(() => evidenceUrls.retain(evidenceItems.map(item => item.url)), [evidenceItems, evidenceUrls])
+  useEffect(() => evidenceUrls.retain(evidenceItems.filter(item => item.url.startsWith('blob:')).map(item => item.url)), [evidenceItems, evidenceUrls])
   useEffect(() => { requirementLinksRef.current = requirementLinks }, [requirementLinks])
   useEffect(() => { requirementsByProjectRef.current = requirementsByProject }, [requirementsByProject])
   const availableProjects = projects
@@ -173,9 +173,9 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
     const controller = new AbortController(), selectedProjectId = projectId
     void Promise.allSettled([
       loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal), loadTestCases(selectedProjectId, controller.signal), loadRequirementTestCaseLinks(selectedProjectId, controller.signal), loadTestSuites(selectedProjectId, controller.signal), loadTestSuiteTestCaseLinks(selectedProjectId, controller.signal),
-      loadEnvironments(selectedProjectId, controller.signal), loadReleases(selectedProjectId, controller.signal), loadBuilds(selectedProjectId, controller.signal), loadTestRuns(selectedProjectId, controller.signal), loadTestExecutions(selectedProjectId, controller.signal), loadDefects(selectedProjectId, controller.signal), loadDefectSourceLinks(selectedProjectId, controller.signal), loadDefectRetests(selectedProjectId, controller.signal), loadChecklists(selectedProjectId, controller.signal), loadChecklistRuns(selectedProjectId, controller.signal), loadChecklistRunItems(selectedProjectId, controller.signal), loadSmokeSuites(selectedProjectId, controller.signal), loadSmokeSuiteLinks(selectedProjectId, controller.signal), loadSmokePrerequisites(selectedProjectId, controller.signal), loadSmokeRuns(selectedProjectId, controller.signal), loadSmokeRunPrerequisites(selectedProjectId, controller.signal), loadSmokeExecutions(selectedProjectId, controller.signal),
+      loadEnvironments(selectedProjectId, controller.signal), loadReleases(selectedProjectId, controller.signal), loadBuilds(selectedProjectId, controller.signal), loadTestRuns(selectedProjectId, controller.signal), loadTestExecutions(selectedProjectId, controller.signal), loadDefects(selectedProjectId, controller.signal), loadDefectSourceLinks(selectedProjectId, controller.signal), loadDefectRetests(selectedProjectId, controller.signal), loadChecklists(selectedProjectId, controller.signal), loadChecklistRuns(selectedProjectId, controller.signal), loadChecklistRunItems(selectedProjectId, controller.signal), loadSmokeSuites(selectedProjectId, controller.signal), loadSmokeSuiteLinks(selectedProjectId, controller.signal), loadSmokePrerequisites(selectedProjectId, controller.signal), loadSmokeRuns(selectedProjectId, controller.signal), loadSmokeRunPrerequisites(selectedProjectId, controller.signal), loadSmokeExecutions(selectedProjectId, controller.signal), loadEvidenceItems(selectedProjectId, controller.signal),
     ])
-      .then(([areas, requirements, plans, types, cases, links, suites, suiteLinks, environments, releases, builds, runs, executions, defectItems, defectLinks, retests, checklistItems, checklistRunItems, checklistItemsInRuns, smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions]) => {
+      .then(([areas, requirements, plans, types, cases, links, suites, suiteLinks, environments, releases, builds, runs, executions, defectItems, defectLinks, retests, checklistItems, checklistRunItems, checklistItemsInRuns, smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions, evidence]) => {
         if (controller.signal.aborted) return
         if (areas.status === 'fulfilled') setProjectAreas(current => [...current.filter(item => item.projectId !== selectedProjectId), ...areas.value])
         if (requirements.status === 'fulfilled') setRequirementsByProject(current => ({ ...current, [selectedProjectId]: { items: requirements.value } }))
@@ -214,7 +214,9 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
           runPrerequisites: smokeRunPrerequisites.status === 'fulfilled' ? [...current.runPrerequisites.filter(item => item.projectId !== selectedProjectId), ...smokeRunPrerequisites.value] : current.runPrerequisites,
           executions: smokeExecutions.status === 'fulfilled' ? [...current.executions.filter(item => item.projectId !== selectedProjectId), ...smokeExecutions.value] : current.executions,
         }))
-        const failure = [areas, requirements, plans, types, cases, links, suites, suiteLinks, environments, releases, builds, runs, executions, defectItems, defectLinks, retests, checklistItems, checklistRunItems, checklistItemsInRuns, smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions].find(result => result.status === 'rejected')
+        // Audit remains on its existing frontend-only evidence flow.
+        if (evidence.status === 'fulfilled') setEvidenceItems(current => [...current.filter(item => item.projectId !== selectedProjectId || item.ownerType === 'auditFinding'), ...evidence.value.filter(item => item.ownerType !== 'auditFinding')])
+        const failure = [areas, requirements, plans, types, cases, links, suites, suiteLinks, environments, releases, builds, runs, executions, defectItems, defectLinks, retests, checklistItems, checklistRunItems, checklistItemsInRuns, smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions, evidence].find(result => result.status === 'rejected')
         setBackendError(failure?.status === 'rejected' ? apiFailure(failure.reason) : '')
       })
       .finally(() => { if (!controller.signal.aborted) setProjectDataLoading(false) })
@@ -574,15 +576,40 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       return saved
     } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
   }
-  async function createRetestRemote(defectId: string, input: import('@/lib/defectRetests').RetestInput, attachments: import('@/types').EvidenceDraft[]) {
+  async function createRetestRemote(defectId: string, input: import('@/lib/defectRetests').RetestInput, attachments: import('@/components/defects/DefectRetests').RetestEvidenceAttachment[]) {
+    let savedRetest = false
     try {
       const saved = await createDefectRetestApi(projectId, defectId, input)
+      savedRetest = true
       const next = [...defectRetests, saved]
       const owner = { projectId, ownerType: 'defectRetest' as const, ownerId: saved.id }
-      const evidence = commitRetestEvidence(evidenceItems, owner, attachments, evidenceOwners, { ...evidenceOwners, retests: next })
-      setDefectRetests(next); setEvidenceItems(evidence)
-      return null
-    } catch (error) { return apiFailure(error) }
+      setDefectRetests(next)
+      const uploaded = [] as EvidenceItem[]
+      for (const attachment of attachments) {
+        uploaded.push(attachment.draft.kind === 'file'
+          ? await uploadEvidenceFile(owner, (() => { if (!attachment.file) throw new Error(`Файл ${attachment.draft.name} більше недоступний.`); return attachment.file })())
+          : await createEvidenceLink(owner, attachment.draft.name, attachment.draft.url))
+      }
+      if (uploaded.length) setEvidenceItems(current => [...current, ...uploaded])
+      return { saved: true }
+    } catch (error) { return { saved: savedRetest, error: apiFailure(error) } }
+  }
+  async function uploadEvidenceRemote(owner: import('@/types').EvidenceOwner, file: File) {
+    if (owner.ownerType === 'auditFinding' || owner.projectId !== projectId || !evidenceOwnerStatus(owner, evidenceOwners)?.editable) throw new Error('Власник вкладення недоступний або вже read-only.')
+    const saved = await uploadEvidenceFile(owner, file)
+    setEvidenceItems(current => [...current.filter(item => item.id !== saved.id), saved])
+  }
+  async function createEvidenceLinkRemote(owner: import('@/types').EvidenceOwner, name: string, url: string) {
+    if (owner.ownerType === 'auditFinding' || owner.projectId !== projectId || !evidenceOwnerStatus(owner, evidenceOwners)?.editable) throw new Error('Власник вкладення недоступний або вже read-only.')
+    const saved = await createEvidenceLink(owner, name, url)
+    setEvidenceItems(current => [...current.filter(item => item.id !== saved.id), saved])
+  }
+  async function removeEvidenceRemote(owner: import('@/types').EvidenceOwner, evidenceId: string) {
+    if (owner.ownerType === 'auditFinding' || owner.projectId !== projectId || !evidenceOwnerStatus(owner, evidenceOwners)?.editable) throw new Error('Власник вкладення недоступний або вже read-only.')
+    const item = evidenceItems.find(value => value.id === evidenceId && value.projectId === owner.projectId && value.ownerType === owner.ownerType && value.ownerId === owner.ownerId)
+    if (!item) throw new Error('Вкладення недоступне.')
+    await deleteEvidenceItem(owner.projectId, evidenceId)
+    setEvidenceItems(current => current.filter(value => value.id !== evidenceId || value.projectId !== owner.projectId))
   }
   async function transitionRetestRemote(defectId: string, action: import('@/components/defects/DefectRetests').RetestAction, retestId?: string) {
     try {
@@ -672,7 +699,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
 
 
   return (
-    <DefectContext.Provider value={{ state: defects, sources: defectSources, create: createDefectFromSource, view: openDefect, viewSource: viewDefectSource, link: attachSourceDefect }}><EvidenceContext.Provider value={{ items: evidenceItems, owners: evidenceOwners, urls: evidenceUrls, userId: currentUser.id, replace: (owner, update) => {
+    <DefectContext.Provider value={{ state: defects, sources: defectSources, create: createDefectFromSource, view: openDefect, viewSource: viewDefectSource, link: attachSourceDefect }}><EvidenceContext.Provider value={{ items: evidenceItems, owners: evidenceOwners, urls: evidenceUrls, userId: currentUser.id, upload: uploadEvidenceRemote, addLink: createEvidenceLinkRemote, remove: removeEvidenceRemote, replace: (owner, update) => {
       replaceEvidence(evidenceItems, owner, update(ownerEvidence(evidenceItems, owner, evidenceOwners)), evidenceOwners)
       setEvidenceItems(current => replaceEvidence(current, owner, update(ownerEvidence(current, owner, evidenceOwners)), evidenceOwners))
     } }}><AccountBarSlotContext.Provider value={accountBackSlot}><div className="app-shell">

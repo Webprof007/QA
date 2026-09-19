@@ -4,6 +4,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { ColumnFilter } from '@/components/coverage/ColumnFilter'
+import { priorityLabel } from '@/lib/domainLabels'
 export type LinkPickerItem = { id: string; code: string; title: string; status: string; area?: string; priority?: string; type?: string }
 
 const pageSize = 8
@@ -50,13 +51,13 @@ export function EntityLinkPicker({ testCases, selectedIds, onApply, onClose, kin
         <table className="tc-table" aria-label="Link choices">
           <colgroup><col style={{ width: 28 }} /><col /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} />{!isRequirements && <col style={{ width: '15%' }} />}<col style={{ width: '15%' }} /></colgroup>
           <thead><tr><th><span className="sr-only">Select</span></th><th>ID / Title</th>
-            {(['area', 'priority', 'type'] as const).filter(key => !isRequirements || key !== 'type').map(key => <th key={key}><ColumnFilter label={key === 'area' ? 'Area' : key === 'priority' ? 'Priority' : 'Type'} value={metadata[key]} options={[...new Set(testCases.map(item => item[key]).filter((value): value is string => Boolean(value)))].map(value => ({ value, label: value }))} onChange={value => { setMetadata(current => ({ ...current, [key]: value })); setPage(0) }} /></th>)}
+            {(['area', 'priority', 'type'] as const).filter(key => !isRequirements || key !== 'type').map(key => <th key={key}><ColumnFilter label={key === 'area' ? 'Area' : key === 'priority' ? 'Priority' : 'Type'} value={metadata[key]} options={[...new Set(testCases.map(item => item[key]).filter((value): value is string => Boolean(value)))].map(value => ({ value, label: key === 'priority' ? priorityLabel(value) : value }))} onChange={value => { setMetadata(current => ({ ...current, [key]: value })); setPage(0) }} /></th>)}
             <th><ColumnFilter label="Status" value={status} options={[{ value: isRequirements ? 'approved' : 'active', label: isRequirements ? 'Approved / Затверджено' : 'Active' }, { value: 'draft', label: isRequirements ? 'Draft / Чернетка' : 'Draft' }, { value: 'deprecated', label: isRequirements ? 'Deprecated / Застаріле' : 'Deprecated' }]} onChange={value => { setStatus(value); setPage(0) }} /></th>
           </tr></thead>
           <tbody>{filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map(test => <tr key={test.id} onClick={() => toggle(test.id, !selection.has(test.id))}>
             <td onClick={event => event.stopPropagation()}><Checkbox aria-label={`${test.code} ${test.title}`} checked={selection.has(test.id)} onCheckedChange={checked => toggle(test.id, checked === true)} /></td>
             <td><span className="test-id">{test.code}</span><span className="req-picker-title">{test.title}</span></td>
-            <td>{test.area || '—'}</td><td>{test.priority || '—'}</td>{!isRequirements && <td>{test.type || '—'}</td>}<td>{test.status}</td>
+            <td>{test.area || '—'}</td><td>{priorityLabel(test.priority)}</td>{!isRequirements && <td>{test.type || '—'}</td>}<td>{test.status}</td>
           </tr>)}</tbody>
         </table>
         {!filtered.length && <p className="muted">{isRequirements ? 'No matching requirements.' : 'No matching test cases.'}</p>}

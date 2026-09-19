@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { RichTextEditor } from '@/components/rich-text/RichTextEditor'
 import { AuditMetadataFields } from './AuditMetadataFields'
 import type { AuditFinding } from '@/types'
+import { severityLabel } from '@/lib/domainLabels'
 
 type Props = { followupDisabled?: boolean; readOnly?: boolean; item: AuditFinding; creating?: boolean; notice: string; error?: string; onChange: (item: AuditFinding) => void; onSave: (attachments: EvidenceDraft[]) => void; onClose: () => void }
 
@@ -26,7 +27,7 @@ export function AuditWorkspacePanel({ followupDisabled, readOnly, item, creating
     <div className="panel-heading"><div><p className="test-id">{creating ? 'Новий запис' : item.code}</p><h2 id="audit-workspace-title">{creating ? 'Додати зауваження' : item.title || 'Без назви'}</h2></div><Button variant="ghost" size="icon" onClick={onClose} aria-label="Закрити панель Audit"><X /></Button></div>
     {readOnly ? <div className="audit-workspace-form">
       <p>Area: {item.areaNameSnapshot || '—'} · Type: {item.typeNameSnapshot || '—'}</p>
-      <p>Severity: {item.severity} · Status: {item.status} · Date: {item.discoveredAt}</p>
+      <p>Severity: {severityLabel(item.severity)} · Status: {item.status} · Date: {item.discoveredAt}</p>
       {([['description', 'Що виявлено'], ['location', 'Location / де виявлено'], ['expected', 'Expected / Очікуваний результат'], ['actual', 'Actual / Фактичний результат'], ['evidenceNote', 'Evidence note'], ['comment', 'Comment']] as const).map(([key, label]) => <section key={key}><h3>{label}</h3><RichText value={item[key] || '—'} /></section>)}
       {/^(https?):\/\//i.test(item.taskUrl) && <a href={item.taskUrl} target="_blank" rel="noopener noreferrer">Open task</a>}
       <OwnerEvidence owner={owner} />

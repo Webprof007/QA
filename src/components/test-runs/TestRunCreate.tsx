@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestPlan } from '@/types'
 import type { RunInput } from '@/lib/testRuns'
+import { priorityLabel } from '@/lib/domainLabels'
 export function TestRunCreate({ projectId, setup = emptyProjectSetup, initial, cases, plans, areas, types, onCreate, onCancel }: { projectId: string; setup?: ProjectSetupState; initial?: Partial<RunInput>; cases: TestCase[]; plans: TestPlan[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; onCreate: (input: RunInput) => Promise<string | null>; onCancel: () => void }) {
   const [draft, setDraft] = useState<RunInput>({ name: '', testPlanId: '', environmentId: undefined, buildId: undefined, browser: '', deviceOrOs: '', notes: '', testCaseIds: [], ...initial })
   const [search, setSearch] = useState(''), [area, setArea] = useState(''), [priority, setPriority] = useState(''), [type, setType] = useState('')
@@ -19,7 +20,7 @@ export function TestRunCreate({ projectId, setup = emptyProjectSetup, initial, c
   const patch = (value: Partial<RunInput>) => setDraft(current => ({ ...current, ...value }))
   const filterOptions = {
     Area: { value: area, set: setArea, options: areas.map(item => ({ value: item.id, label: item.name })) },
-    Priority: { value: priority, set: setPriority, options: ['critical', 'high', 'medium', 'low'].map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) })) },
+    Priority: { value: priority, set: setPriority, options: ['critical', 'high', 'medium', 'low'].map(value => ({ value, label: priorityLabel(value) })) },
     Type: { value: type, set: setType, options: types.map(item => ({ value: item.id, label: item.name })) },
   }
   function filterHeader(label: keyof typeof filterOptions) {
@@ -39,7 +40,7 @@ export function TestRunCreate({ projectId, setup = emptyProjectSetup, initial, c
       <Input aria-label="Search test cases" placeholder="Search by ID or title..." value={search} onChange={event => { setSearch(event.target.value); setPage(0) }} />
       {(search || area || priority || type) && <Button type="button" variant="ghost" size="sm" onClick={() => { setSearch(''); setArea(''); setPriority(''); setType(''); setPage(0) }}>Clear filters</Button>}
     </div><div className="tc-panel-actions"><Button type="button" variant="outline" onClick={() => patch({ testCaseIds: [...new Set([...draft.testCaseIds, ...visible.slice(currentPage * 10, currentPage * 10 + 10).map(item => item.id)])] })}>Select all visible</Button><Button type="button" variant="ghost" onClick={() => patch({ testCaseIds: [] })}>Clear selection</Button><span>{draft.testCaseIds.length} selected</span></div>
-      <table className="tc-table"><thead><tr>{['', 'ID', 'Title', 'Area', 'Priority', 'Type'].map((label, index) => <th key={index}>{label in filterOptions ? filterHeader(label as keyof typeof filterOptions) : label}</th>)}</tr></thead><tbody>{visible.slice(currentPage * 10, currentPage * 10 + 10).map(item => <tr key={item.id}><td><Checkbox aria-label={`Select ${item.code} ${item.title}`} checked={draft.testCaseIds.includes(item.id)} onCheckedChange={checked => patch({ testCaseIds: checked ? [...draft.testCaseIds, item.id] : draft.testCaseIds.filter(id => id !== item.id) })} /></td><td>{item.code}</td><td>{item.title}</td><td>{areas.find(area => area.id === item.areaId)?.name || '—'}</td><td>{item.priority}</td><td>{types.find(type => type.id === item.typeId)?.name || '—'}</td></tr>)}</tbody></table>
+      <table className="tc-table"><thead><tr>{['', 'ID', 'Title', 'Area', 'Priority', 'Type'].map((label, index) => <th key={index}>{label in filterOptions ? filterHeader(label as keyof typeof filterOptions) : label}</th>)}</tr></thead><tbody>{visible.slice(currentPage * 10, currentPage * 10 + 10).map(item => <tr key={item.id}><td><Checkbox aria-label={`Select ${item.code} ${item.title}`} checked={draft.testCaseIds.includes(item.id)} onCheckedChange={checked => patch({ testCaseIds: checked ? [...draft.testCaseIds, item.id] : draft.testCaseIds.filter(id => id !== item.id) })} /></td><td>{item.code}</td><td>{item.title}</td><td>{areas.find(area => area.id === item.areaId)?.name || '—'}</td><td>{priorityLabel(item.priority)}</td><td>{types.find(type => type.id === item.typeId)?.name || '—'}</td></tr>)}</tbody></table>
       {!visible.length && <p>Немає відповідних Test Cases.</p>}
       <div className="tc-panel-actions"><Button type="button" variant="ghost" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}>Previous page</Button><span>{currentPage + 1} / {pageCount}</span><Button type="button" variant="ghost" disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)}>Next page</Button></div>
     </section>

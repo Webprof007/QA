@@ -7,6 +7,7 @@ import { EntityLinkPicker } from '@/components/coverage/EntityLinkPicker'
 import { TestCaseLinkPicker } from '@/components/requirements/TestCaseLinkPicker'
 import { priorities } from '@/components/test-cases/testCaseOptions'
 import { requirementStatuses } from '@/components/requirements/requirementOptions'
+import { resultLabel } from '@/lib/domainLabels'
 import { coverageSummary, emptyCoverageFilters, filterCoverage, latestExecutionResult, requirementsWithLinks } from '@/lib/coverage'
 import type { ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestExecution } from '@/types'
 import './RequirementsPage.css'
@@ -84,7 +85,7 @@ export function CoveragePage({ projectId, requirements, cases, links, areas, typ
           <section className="tc-section"><h3>{view === 'requirement' ? 'Linked Test Cases' : 'Requirements'}</h3>
             {view === 'requirement' ? <>
               {selectedCases.length ? <table className="tc-table" aria-label="Linked Test Cases"><thead><tr><th>ID / Title</th><th>Area / Priority</th><th>Type / Status</th><th>Latest Result</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{selectedCases.map(item => <tr key={item.id}>
-                <td><span className="test-id">{item.code}</span><br />{item.title}</td><td>{areaName(item.areaId)}<br />{priorityName(item.priority)}</td><td>{availableTypes.find(type => type.id === item.typeId)?.name || '—'}<br />{item.status}</td><td>{latestExecutionResult(projectId, item.id, executions)}</td>
+                <td><span className="test-id">{item.code}</span><br />{item.title}</td><td>{areaName(item.areaId)}<br />{priorityName(item.priority)}</td><td>{availableTypes.find(type => type.id === item.typeId)?.name || '—'}<br />{item.status}</td><td>{resultLabel(latestExecutionResult(projectId, item.id, executions))}</td>
                 <td><Button variant="ghost" size="icon" aria-label={`Unlink ${item.code}`} onClick={() => void saveLinks(selectedCases.filter(value => value.id !== item.id).map(value => value.id))}><X /></Button></td>
               </tr>)}</tbody></table> : <p className="muted">No linked test cases</p>}
             </> : <>
