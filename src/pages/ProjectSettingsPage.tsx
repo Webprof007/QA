@@ -6,20 +6,21 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { saveBuild, saveEnvironment, saveRelease, deleteSetupEntity, releaseStatuses } from '@/lib/projectSetup'
+import { deleteSetupEntity, releaseStatuses, saveBuild, saveEnvironment, saveRelease } from '@/lib/projectSetup'
 import type { Build, Environment, Project, ProjectArea, ProjectSetupState, Release, TestCaseDictionaryValue } from '@/types'
 import './ProjectSettingsPage.css'
 
-type Draft = { kind: 'Environment'; value: Environment } | { kind: 'Release'; value: Release } | { kind: 'Build'; value: Build }
+export type ProjectSetupDraft = { kind: 'Environment'; value: Environment } | { kind: 'Release'; value: Release } | { kind: 'Build'; value: Build }
+type Draft = ProjectSetupDraft
 type Props = {
   project: Project; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; data: ProjectSetupState
-  onChange: Dispatch<SetStateAction<ProjectSetupState>>
+  onSetupSave?: (draft: Draft) => Promise<void>; onSetupDelete?: (kind: 'environments' | 'builds', id: string) => Promise<void>; onChange?: Dispatch<SetStateAction<ProjectSetupState>>
   onAreaSave: (name: string, id?: string) => Promise<string>; onAreaRemove: (id: string) => Promise<string>
   onTypeSave: (name: string, id?: string) => Promise<string>; onTypeRemove: (id: string) => Promise<string>
   onDeleteProject: () => void
 }
 
-export function ProjectSettingsPage({ project, areas, types, data, onChange, onAreaSave, onAreaRemove, onTypeSave, onTypeRemove, onDeleteProject }: Props) {
+export function ProjectSettingsPage({ project, areas, types, data, onSetupSave, onSetupDelete, onChange, onAreaSave, onAreaRemove, onTypeSave, onTypeRemove, onDeleteProject }: Props) {
   const projectId = project.id
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState('')
@@ -36,12 +37,14 @@ export function ProjectSettingsPage({ project, areas, types, data, onChange, onA
     else if (kind === 'Release') setDraft({ kind, value: { ...base, name: '', status: 'Planning', startDate: '', releaseDate: '' } })
     else setDraft({ kind, value: { ...base, version: '' } })
   }
-  function save() {
+  async function save() {
     if (!draft) return
     try {
-      const next = draft.kind === 'Environment' ? saveEnvironment(data, projectId, draft.value) : draft.kind === 'Release' ? saveRelease(data, projectId, draft.value) : saveBuild(data, projectId, draft.value)
-      onChange(next); close()
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Не вдалося зберегти запис.') }
+      if (onSetupSave) await onSetupSave(draft)
+      else if (onChange) onChange(draft.kind === 'Environment' ? saveEnvironment(data, projectId, draft.value) : draft.kind === 'Release' ? saveRelease(data, projectId, draft.value) : saveBuild(data, projectId, draft.value))
+      close()
+    }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Не вдалося зберегти запис.') }
   }
   function setDraftName(value: string) {
     setDraft(current => {
@@ -65,7 +68,7 @@ export function ProjectSettingsPage({ project, areas, types, data, onChange, onA
       {draft.kind === 'Build' && <div className="field"><label htmlFor="setup-release">Release</label><select className="audit-select" id="setup-release" value={draft.value.releaseId ?? ''} onChange={event => setDraft({ ...draft, value: { ...draft.value, releaseId: event.target.value || undefined } })}><option value="">—</option>{releases.filter(item => item.status !== 'Archived' || builds.some(build => build.id === draft.value.id && build.releaseId === item.id)).map(item => <option key={item.id} value={item.id}>{item.name}{item.status === 'Archived' ? ' · Archived' : ''}</option>)}</select></div>}
       {error && <p className="form-error" role="alert">{error}</p>}<DialogFooter><Button type="button" variant="outline" onClick={close}>Cancel</Button><Button type="submit">Save</Button>{draft.kind !== 'Release' && (draft.kind === 'Environment' ? environments : builds).some(item => item.id === draft.value.id) && <Button type="button" variant="destructive" onClick={() => setDeleting({ kind: draft.kind === 'Environment' ? 'environments' : 'builds', id: draft.value.id })}>Delete {draft.kind}</Button>}</DialogFooter>
     </form>}</DialogContent></Dialog>
-    <Dialog open={!!deleting} onOpenChange={open => { if (!open) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Видалити запис?</DialogTitle><DialogDescription>Історичні назви в Runs та Defects залишаться незмінними.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={() => { if (deleting) onChange(current => deleteSetupEntity(current, projectId, deleting.kind, deleting.id)); setDeleting(null); close() }}>Підтвердити видалення</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={!!deleting} onOpenChange={open => { if (!open) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>Видалити запис?</DialogTitle><DialogDescription>Історичні назви в Runs та Defects залишаться незмінними.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" onClick={() => { if (!deleting) return; if (onSetupDelete) void onSetupDelete(deleting.kind, deleting.id).then(() => { setDeleting(null); close() }).catch(cause => setError(cause instanceof Error ? cause.message : 'Не вдалося видалити запис.')); else if (onChange) { onChange(current => deleteSetupEntity(current, projectId, deleting.kind, deleting.id)); setDeleting(null); close() } }}>Підтвердити видалення</Button></DialogFooter></DialogContent></Dialog>
   </main>
 }
 

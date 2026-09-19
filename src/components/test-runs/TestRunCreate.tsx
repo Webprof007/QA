@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { ProjectArea, TestCase, TestCaseDictionaryValue, TestPlan } from '@/types'
 import type { RunInput } from '@/lib/testRuns'
-export function TestRunCreate({ projectId, setup = emptyProjectSetup, initial, cases, plans, areas, types, onCreate, onCancel }: { projectId: string; setup?: ProjectSetupState; initial?: Partial<RunInput>; cases: TestCase[]; plans: TestPlan[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; onCreate: (input: RunInput) => string | null; onCancel: () => void }) {
+export function TestRunCreate({ projectId, setup = emptyProjectSetup, initial, cases, plans, areas, types, onCreate, onCancel }: { projectId: string; setup?: ProjectSetupState; initial?: Partial<RunInput>; cases: TestCase[]; plans: TestPlan[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; onCreate: (input: RunInput) => Promise<string | null>; onCancel: () => void }) {
   const [draft, setDraft] = useState<RunInput>({ name: '', testPlanId: '', environmentId: undefined, buildId: undefined, browser: '', deviceOrOs: '', notes: '', testCaseIds: [], ...initial })
   const [search, setSearch] = useState(''), [area, setArea] = useState(''), [priority, setPriority] = useState(''), [type, setType] = useState('')
   const [page, setPage] = useState(0), [error, setError] = useState('')
@@ -29,7 +29,7 @@ export function TestRunCreate({ projectId, setup = emptyProjectSetup, initial, c
       {filter.options.map(option => <DropdownMenuCheckboxItem key={option.value} checked={filter.value === option.value} onCheckedChange={() => { filter.set(filter.value === option.value ? '' : option.value); setPage(0) }}>{option.label}</DropdownMenuCheckboxItem>)}
     </DropdownMenuContent></DropdownMenu>
   }
-  return <form className="tc-form" onSubmit={event => { event.preventDefault(); setError(onCreate(draft) ?? '') }}>
+  return <form className="tc-form" onSubmit={event => { event.preventDefault(); void onCreate(draft).then(message => setError(message ?? '')).catch(cause => setError(cause instanceof Error ? cause.message : 'Не вдалося створити запуск.')) }}>
     <h2>New Test Run</h2>
     <div className="run-fields"><ProjectContextFields projectId={projectId} setup={setup} value={draft} onChange={patch} />{([['name', 'Name'], ['browser', 'Browser'], ['deviceOrOs', 'Device / OS']] as const).map(([key, label]) => <div className="field" key={key}><label htmlFor={`run-${key}`}>{label}</label><Input id={`run-${key}`} required={key === 'name'} value={draft[key]} onChange={event => patch({ [key]: event.target.value })} /></div>)}
       <div className="field"><label htmlFor="run-plan">Test Plan</label><select id="run-plan" className="audit-select" value={draft.testPlanId ?? ''} onChange={event => patch({ testPlanId: event.target.value })}><option value="">—</option>{plans.map(plan => <option key={plan.id} value={plan.id}>{plan.title} · {plan.version}</option>)}</select></div>

@@ -6,7 +6,7 @@ export type DefectContextValue = {
   create: (source: DefectSourceRef) => void
   view: (id: string) => void
   viewSource: (source: DefectSourceRef) => void
-  link: (source: DefectSourceRef, defectId: string) => string | null
+  link: (source: DefectSourceRef, defectId: string) => string | null | Promise<string | null>
 }
 export const DefectContext = createContext<DefectContextValue | null>(null)
 export function useDefectContext() {

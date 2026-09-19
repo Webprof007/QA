@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { createProjectAreaData } from '@/data/projectAreaMockData'
 import { AuditFindingsPage } from './AuditFindingsPage'
@@ -23,9 +23,11 @@ it('shares an Area across Checklist, Defect, Audit, Requirement, Test Case and C
   await renderAuthenticatedApp()
   click('Checklists / Чеклісти'); click('+ Add checklist')
   change('Title', 'Area ownership checklist'); change('Item 1', 'Check area ownership'); selectArea('Auth'); click('Save Checklist')
+  await screen.findAllByText('Area ownership checklist')
   click('Defects / Дефекти'); click('+ Add defect'); change('Title', 'Area ownership defect')
   const areaId = (screen.getByRole('option', { name: 'Auth' }) as HTMLOptionElement).value
   change('Area', areaId); click('Save Defect')
+  await screen.findAllByText('Area ownership defect')
   click('Audit / Аудит'); click('AUDIT-001'); click('+ Add audit finding'); change('Назва', 'Area ownership finding'); selectArea('Auth')
   click('Створити зауваження')
   for (const page of ['Requirements / Вимоги', 'Test Cases / Тест-кейси', 'Checklists / Чеклісти', 'Defects / Дефекти']) {
@@ -36,6 +38,7 @@ it('shares an Area across Checklist, Defect, Audit, Requirement, Test Case and C
   expect(within(screen.getByRole('table', { name: 'Requirement coverage' })).getAllByText('Auth').length).toBeGreaterThan(0)
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name: 'QP Notes' }))
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
   expect(screen.queryByText('Auth')).toBeNull()
 })
 

@@ -27,7 +27,7 @@ export function DefectPanel({ retestSection, setup = emptyProjectSetup, item, ed
       {error && <p role="alert" className="form-error">{error}</p>}
       {editing && <div className="tc-panel-actions"><Button type="submit">Save Defect</Button><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button></div>}
     </form>
-    {!editing && <OwnerEvidence key={item.id} owner={{ projectId: item.projectId, ownerType: 'defect', ownerId: item.id }} />}
+    {!editing && <OwnerEvidence key={`evidence-${item.id}`} owner={{ projectId: item.projectId, ownerType: 'defect', ownerId: item.id }} />}
     {!editing && retestSection}
   </aside>
 }

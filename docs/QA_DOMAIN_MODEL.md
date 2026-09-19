@@ -2,27 +2,27 @@ Before adding or changing a QA domain entity, review this document and reuse exi
 
 # QA domain model
 
-Reviewed against the frontend on 2026-09-16. This document records current ownership and the rules for extending it. **Reuse entities by ID; do not duplicate domain state.** Known legacy exceptions below are not patterns for new development.
+Reviewed against the frontend on 2026-09-18. This document records current ownership and the rules for extending it. **Reuse entities by ID; do not duplicate domain state.**
 
 ## Current entities and ownership
 
-`QAApp` in `src/App.tsx` owns the frontend state/cache. Pages own selection, filters and unsaved editor drafts. The application is temporarily hybrid: Projects, Project Areas, Requirements, Test Plans and Test Case Types are loaded and mutated through the PHP API; all other QA entities remain session-local React state until their endpoints exist. A single entity must never combine API records with mock records.
+`QAApp` in `src/App.tsx` owns the frontend state/cache. Pages own selection, filters and unsaved editor drafts. The application is temporarily hybrid: entities listed below as API-backed are loaded and mutated through the PHP API; Audit and Evidence remain session-local React state. A single entity must never combine API records with mock records.
 
 | Entity | Current source of truth / role |
 | --- | --- |
 | Project | API-backed `projects`; root of QA data. Backend numeric IDs are normalized to frontend string IDs only in `lib/qaApi.ts`. The legacy `userIds` property is empty because the current Projects contract does not return membership. |
-| User | `useAuth().user` (`AuthUser`); PHP session + `/auth/me.php`. No second user directory/state. Demo memberships grant the current user access to mock projects; they are not server authorization. |
+| User | `useAuth().user` (`AuthUser`); PHP session + `/auth/me.php`. No second user directory/state. Project access is determined by the backend. |
 | ProjectArea | API-backed `projectAreas`; one catalog per project shared across Requirements, Test Cases, Checklists, Defects, Audit and Coverage. |
-| Environment / Release / Build | `projectSetup.environments` / `.releases` / `.builds` in QAApp; shared project-level catalogs, technical IDs separate from names/versions. |
+| Environment / Release / Build | API-backed `projectSetup.environments` / `.releases` / `.builds`; shared project-level catalogs, technical IDs separate from names/versions. |
 | Requirement | API-backed `requirementsByProject[id].items`; one live definition. Optional Priority reuses the current Test Case priority values; it is not Defect priority. |
 | TestPlan | API-backed `testPlans[]`; many plans per project, planning documents, not implicit containers of Test Cases. |
 | TestCase | API-backed `testCasesByProject[id].items`; central live definition with technical ID, display code and structured steps. Test Case Types are also API-backed for the selected project. |
 | TestSuite | API-backed `testSuites.suites`; reusable definitions with ordered central Test Case ID links in `testSuites.links`. |
-| TestRun / TestExecution | `testRunData.runs` / `.executions`; executions reference a case and contain its historical snapshot. |
-| Defect | `defects.items`; independent editable product issue, including its own copied incident context. |
-| DefectRetest | `defectRetests[]` in QAApp; append-only focused verification records, separate from Defect and TestExecution. |
-| Checklist / ChecklistRun | `checklists[]` / `checklistRuns[]`; template items are children of a checklist, run items are children of a run. |
-| SmokeSuite / SmokeRun | `smoke.suites` / `smoke.runs`; ordered ID membership, prerequisite definitions and separate historical execution records. |
+| TestRun / TestExecution | API-backed `testRunData.runs` / `.executions`; executions reference a case and contain backend-created historical snapshots. |
+| Defect | API-backed `defects.items`; independent editable product issue, including its own copied incident context. |
+| DefectRetest | API-backed append-only `defectRetests[]`; focused verification records, separate from Defect and TestExecution. |
+| Checklist / ChecklistRun | API-backed `checklists[]` / `checklistRuns[]`; template items are children of a checklist, run items contain backend-created text snapshots. |
+| SmokeSuite / SmokeRun | API-backed `smoke.suites` / `smoke.runs`; ordered ID membership, prerequisite definitions and separate backend-created historical execution records. |
 | Audit / AuditCheck / AuditFinding | `auditData.audits` / `.checks` / `.findings` in QAApp; project-scoped sessions with owned criteria and observations. |
 | Coverage | A view over Requirements, Test Cases, executions and links. It owns no domain definitions or saved counts. |
 
@@ -53,7 +53,7 @@ Test Run → Environment / Build       IDs + historical name/version snapshots
 Smoke Run → Environment / Build      IDs + historical name/version snapshots
 Defect → Environment / Build         IDs + incident name/version snapshots
 
-Project ↔ User                       membership by userIds (mock)
+Project ↔ User                       backend authorization/membership (not Project-owned User data)
 Requirement ↔ Test Case              RequirementTestCaseLink[]
 Test Suite ↔ Test Case              TestSuiteTestCaseLink[] with order
 Test Suite → source Test Runs        optional sourceTestSuiteId + code/name snapshots
@@ -115,21 +115,21 @@ Renaming an Area updates all live views by ID. Deletion is blocked while used by
 
 `lib/api.ts` is the one HTTP client and uses `VITE_API_URL`, session-cookie
 credentials and the backend error contract. `lib/qaApi.ts` is the domain adapter
-for Projects, Project Areas, Requirements, Test Plans, Test Cases, Test Case Types
-and Requirement ↔ Test Case links. Numeric
+for Projects, Project Areas, Requirements, Test Plans, Test Cases, Test Case Types,
+Test Suites, Environments/Releases/Builds, Test Runs/Executions, Defects/Retests,
+Checklists/Runs, Smoke definitions/runs and their API-backed relations. Numeric
 backend IDs are converted to the frontend string ID type at this boundary and are
 converted back only when building requests. A failed mutation never creates or
 changes the corresponding local cache record. A 401 delegates to the existing
 auth/session refresh flow.
 
-After authentication, Projects load first. Selecting a Project loads its Areas,
-Requirements, Test Plans, Test Cases, Test Case Types and Requirement ↔ Test Case
-links independently as one project-scoped
+After authentication, Projects load first. Selecting a Project loads all API-backed
+catalogs, definitions, runs, executions and relations independently as one project-scoped
 batch. Their old demo seeds are not fallback data. Existing data is retained while
 an error is shown, and responses for an abandoned Project selection are ignored.
 Project edit is not implemented because the current backend has no update endpoint.
 After a successful Project create, the new Project becomes active and opens Project
-Settings while its Areas, Requirements, Test Plans and Test Case Types load.
+Settings while its complete API-backed project batch loads.
 
 Project Settings is a presentation and management screen, not a domain entity or
 another state owner. It shows API Project name/description read-only, because the
@@ -137,19 +137,21 @@ backend has no Project update endpoint. Project Areas and Test Case Types are
 created, renamed and deleted centrally in Settings through their existing API-backed
 collections. Requirements, Test Cases, Checklists and Audit only select from those
 shared dictionaries; they do not expose parallel dictionary CRUD. Environment,
-Release and Build management uses the existing shared `projectSetup` state and
-remains frontend/session-only. The Danger Zone invokes the existing confirmed
+Release and Build management uses the existing shared API-backed `projectSetup`
+cache. The Danger Zone invokes the existing confirmed
 Project deletion flow.
 
-Test Suites, Checklists/Runs, Smoke, Test Runs/Executions, Defects/Retests, Audit,
-Evidence, Environment/Release/Build and derived Reports remain frontend-only. Their
-domain rules and ID relations are unchanged. Requirement and Test Case CSV/XLSX
+Audit and Evidence remain frontend-only. AuditFinding source links stay in the same
+`DefectSourceLink` state locally, while testExecution and smokeExecution links are
+hydrated and mutated through `/defect-source-links/`; this remains one typed relation
+model. Derived Reports remain read-only frontend views. Requirement and Test Case CSV/XLSX
 imports validate in the browser, then create each accepted definition through the
-same API mutation path and report partial failures. Checklist imports remain local.
+same API mutation path and report partial failures. Checklist import follows the
+same per-row Checklist API create path; invalid rows are never submitted.
 
 ## Snapshot rule
 
-Live entity ≠ historical snapshot. Creating a Test Run deep-copies code/title, area/type IDs **and labels**, priority/status, preconditions, structured steps including expected results, postconditions and notes. Executions render the snapshot, not the live Test Case. `testPlanTitleSnapshot` preserves the selected plan's title as run context alongside `testPlanId`.
+Live entity ≠ historical snapshot. When creating Test Runs and Smoke Runs, the backend deep-copies current Test Case content and run context. The frontend renders returned snapshots and never reconstructs or replaces them from live definitions. `testPlanTitleSnapshot` preserves the selected plan's title as run context alongside `testPlanId`.
 
 Checklist runs retain title and ordered item text snapshots, source item IDs, result and comment. Updates preserve run/item identity and snapshots; Completed runs reject writes. Test Runs likewise reject execution edits after completion. Results reset to Not Run clear execution time/user consistently.
 
@@ -185,21 +187,21 @@ Suite detail derives history from existing project Test Runs by sourceTestSuiteI
 - `runPrerequisites`: source prerequisite ID, text snapshot, historical order, Not Checked/Pass/Fail and comment.
 - `executions`: central `testCaseId`, shared `TestCaseSnapshot`, historical order, Not Run/Pass/Fail/Blocked/Skipped, actual result/comment/evidence note and execution time/user.
 
-Creating a run deep-copies all current members and prerequisites in their saved order. `createTestCaseSnapshot` is shared with Test Runs; `ExecutionPanel` is presentation only. SmokeRun and TestRun state/lifecycles remain separate. The shared result-count helper computes progress; counts are never persisted. Coverage's Latest Result currently reads Test Executions only; Smoke is not automatically integrated.
+Creating a run asks the backend to snapshot all current members and prerequisites in saved order. The frontend consumes the returned `TestCaseSnapshot`; `ExecutionPanel` is presentation only. SmokeRun and TestRun state/lifecycles remain separate. The shared result-count helper computes progress; counts are never persisted. Coverage's Latest Result currently reads Test Executions only; Smoke is not automatically integrated.
 
 Prerequisites can be checked in Draft. Start Run sets In Progress/startedAt; the first actual test result also starts a run. Returning an execution to Not Run clears executedAt/executedByUserId. Completion is allowed with outstanding items after a UI warning; all result/prerequisite writes and status changes reject Completed runs. Saved snapshots and run metadata are not editable from execution controls.
 
-Deleted live cases do not affect historical runs. Suite views skip missing definitions and show a notice; creating a new run rejects missing/foreign members until the suite membership is corrected. Saving that suite uses the selected surviving IDs. Deleting a suite requires confirmation and is currently **blocked when it has runs**, preserving history access until archive/delete policy is designed. Deleting an entire mock project still removes its project-owned data.
+Deleted live cases do not affect historical runs. Suite views skip missing definitions and show a notice; creating a new run rejects missing/foreign members until the suite membership is corrected. Saving that suite uses the selected surviving IDs. Deleting a suite requires confirmation and is currently **blocked when it has runs**, preserving history access until archive/delete policy is designed. Project deletion removes its project-owned data through the backend transaction.
 
-Legacy `SmokeTestCase`, embedded TestResult arrays and suite checked prerequisites have been removed. The two new seed suites explicitly use existing central case IDs; no migration copies of the old 16 mock definitions are created. Legacy profile and estimatedMinutes fields were not assigned invented semantics. Suite codes are generated independently of technical IDs; runs are displayed as Run #1, Run #2 within the suite.
+Legacy `SmokeTestCase`, embedded TestResult arrays and suite checked prerequisites have been removed. Runtime Smoke data comes only from the API; isolated test fixtures use existing central case IDs and never create migration copies of the old definitions. Legacy profile and estimatedMinutes fields were not assigned invented semantics. Suite codes are generated independently of technical IDs; runs are displayed as Run #1, Run #2 within the suite.
 
 ## Defect Retest workflow
 
 `DefectRetest` is an independent focused verification record, not a TestExecution or fake TestRun. QAApp owns one `defectRetests[]` collection. Defect 1 → many DefectRetests via projectId/defectId. Original source ↔ Defect links describe discovery; Defect → Retest describes fix verification. Saving a Retest never adds DefectSourceLink or updates TestRun/Smoke executions. Smoke-origin Defects can use their SmokeExecution snapshot as fallback when the live TestCase is absent; no fake TestRun is created.
 
-Only Ready for Retest permits saving Pass/Fail/Blocked. Drafts exist only inside the UI. Environment is required and must be active/current-project; Build is optional and must exist in the same project. Existing valid incident IDs are preselected, but unavailable/inactive defaults must be replaced. Each save captures current shared name/version snapshots and authenticated user ID, with generated executedAt/createdAt. Retest context never overwrites original Defect incident context. There are no saved-Retest edit/delete controls or update helpers; deleting an entire mock project removes its project-owned retests.
+Only Ready for Retest permits saving Pass/Fail/Blocked. Drafts exist only inside the UI. Environment is required and must be active/current-project; Build is optional and must exist in the same project. Existing valid incident IDs are preselected, but unavailable/inactive defaults must be replaced. The backend captures current shared name/version snapshots, authenticated user and timestamps. Retest context never overwrites original Defect incident context. There are no saved-Retest edit/delete controls or update helpers; Project deletion removes owned Retests with the rest of the project graph.
 
-Snapshot precedence for a new attempt: current live central TestCase through `createTestCaseSnapshot` → source TestExecution snapshot → latest previous Retest snapshot for that case → frozen Defect title/stepsToReproduce/expectedResult/actualResult in `defectContextSnapshot`. The fallback field is intentional additional history data: manual Defect editing must not alter prior Retest instructions. No fake TestCase is created. Existing snapshots are deep-copied. Helpers reject foreign source entities and foreign Environment/Build IDs.
+Snapshot precedence for a new attempt is current live central TestCase → source TestExecution snapshot → latest previous Retest snapshot for that case → frozen Defect title/stepsToReproduce/expectedResult/actualResult in `defectContextSnapshot`. The frontend derives the same read-only preview before save; the backend response is authoritative for the persisted historical snapshot. The fallback field is intentional additional history data: manual Defect editing must not alter prior Retest instructions. No fake TestCase is created. Existing snapshots are deep-copied. Helpers reject foreign source entities and foreign Environment/Build IDs.
 
 History is chronological, with stable append order for equal timestamps; Retest #N is derived. Saved details always show snapshots. New → Open and Open/In Progress → Ready for Retest have explicit actions; existing manual Defect status editing remains. Saving any result leaves Ready for Retest unchanged. The latest Pass offers Close Defect (Closed); the latest Fail offers Reopen Defect (Open); Blocked offers neither. Clicking Close/Reopen is the user's explicit status confirmation, never an automatic effect of saving. Outcome actions validate the latest attempt, project, status, result and whether the Defect has since changed. Closed/Rejected/Duplicate do not allow new Retests; history remains readable. There is no general status audit log or permissions workflow.
 
@@ -231,7 +233,7 @@ Defect creation from a saved Fail copies the source Run's IDs and incident snaps
 
 Confirmed Environment/Build deletion removes only the catalog entry. Historical references may dangle, while snapshots remain readable without ghost entities. Releases are archived rather than deleted in the UI. Final archive/FK and concurrent-write policies remain backend decisions.
 
-Old arbitrary environment/build string fields have been removed from TestRun, SmokeRun and Defect; no parallel string entry path remains. Existing mock Runs start empty and demo Defects had blank context, so those records have no selected IDs; the shared Voicli seed provides three Environments, two Releases and three Builds for future records. **TestPlan.environment remains planning text** because it can describe multiple environments/setup instructions. No context fields are added to ChecklistRun, Audit, TestSuite or Coverage.
+Old arbitrary environment/build string fields have been removed from TestRun, SmokeRun and Defect; no parallel string entry path remains. Shared catalogs are loaded per Project from the API and historical context remains readable from snapshots if a live catalog record disappears. **TestPlan.environment remains planning text** because it can describe multiple environments/setup instructions. No context fields are added to ChecklistRun, Audit, TestSuite or Coverage.
 
 ## Shared Evidence / Attachments
 
@@ -325,9 +327,10 @@ Creating a Defect writes only the Defect and relation state. Origin references
 are validated/canonicalized on creation and immutable during ordinary Defect
 editing. Existing source content and completed states are never rewritten.
 Evidence belongs to its original owner and is never automatically copied.
-Unsaved source changes must be saved before follow-up actions. No backend,
-permissions, automatic linking, unlink workflow or multi-source provenance
-timeline is implemented in this step.
+Unsaved source changes must be saved before follow-up actions. TestExecution and
+SmokeExecution links use the backend relation API; AuditFinding links remain local
+with Audit. No automatic linking, unlink workflow or multi-source provenance
+timeline is implemented.
 
 ## Import / Export transport
 

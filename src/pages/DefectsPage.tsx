@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { DefectPanel } from '@/components/defects/DefectPanel'
 import { defectFromSource, newDefect, defectSeverities, defectPriorities, defectStatuses } from '@/lib/defects'
 import type { Defect, ProjectArea, TestRunsState } from '@/types'
-export function DefectsPage({ retests = [], cases = [], types = [], onRetest, onRetestTransition, setup = emptyProjectSetup, projectId, items, areas, runs, initialId, sourceRef, onSave }: { retests?: DefectRetest[]; cases?: TestCase[]; types?: TestCaseDictionaryValue[]; onRetest?: (id: string, input: RetestInput, attachments: EvidenceDraft[]) => string | null; onRetestTransition?: (id: string, action: RetestAction, retestId?: string) => string | null; setup?: ProjectSetupState; projectId: string; items: Defect[]; areas: ProjectArea[]; runs: TestRunsState; initialId?: string; sourceRef?: DefectSourceRef; onSave: (draft: Defect) => string | null }) {
+export function DefectsPage({ retests = [], cases = [], types = [], onRetest, onRetestTransition, setup = emptyProjectSetup, projectId, items, areas, runs, initialId, sourceRef, onSave }: { retests?: DefectRetest[]; cases?: TestCase[]; types?: TestCaseDictionaryValue[]; onRetest?: (id: string, input: RetestInput, attachments: EvidenceDraft[]) => Promise<string | null>; onRetestTransition?: (id: string, action: RetestAction, retestId?: string) => Promise<string | null>; setup?: ProjectSetupState; projectId: string; items: Defect[]; areas: ProjectArea[]; runs: TestRunsState; initialId?: string; sourceRef?: DefectSourceRef; onSave: (draft: Defect) => Promise<Defect> }) {
   const context = useDefectContext()
   const [selectedId, setSelectedId] = useState(initialId ?? '')
   const [draft, setDraft] = useState<Defect | null>(() => {
@@ -44,7 +44,7 @@ export function DefectsPage({ retests = [], cases = [], types = [], onRetest, on
     </DropdownMenu>
   }
   function close() { setDraft(null); setSelectedId(''); setError('') }
-  function save() { if (!draft) return; const message = onSave(draft); if (message) setError(message); else { setSelectedId(draft.id); setDraft(null); setError('') } }
+  function save() { if (!draft) return; void onSave(draft).then(saved => { setSelectedId(saved.id); setDraft(null); setError('') }).catch(cause => setError(cause instanceof Error ? cause.message : 'Не вдалося зберегти дефект.')) }
   return <main className="smoke-app"><header className="page-heading"><h1>Defects</h1></header>
     <div className={`tc-layout ${active ? 'tc-with-panel' : ''}`}><div className="tc-list"><div className="tc-toolbar">
       <AddEntityButton entity="defect" onClick={() => { setDraft(newDefect(projectId, items)); setSelectedId(''); setError('') }} />

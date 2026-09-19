@@ -36,7 +36,7 @@ it('validates project names, creates isolated empty projects and preserves other
   expect(screen.getByLabelText('Current page: Settings / Налаштування')).toBeTruthy()
   click('Smoke / Смоук-тестування')
   expect(screen.getByText('Smoke suites поки немає. Створіть перший набір.')).toBeTruthy()
-  click('+ Add smoke suite'); change('Name', 'New project suite'); click('Save Suite')
+  click('+ Add smoke suite'); change('Name', 'New project suite'); click('Save Suite'); await screen.findByRole('heading', { name: 'New project suite' })
   openProjectDelete(); click('Cancel')
   click('Smoke / Смоук-тестування')
   expect(screen.getByText('New project suite')).toBeTruthy()

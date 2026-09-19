@@ -1,7 +1,7 @@
 import { AddEntityButton } from '@/components/AddEntityButton'
 import { emptyProjectSetup } from '@/lib/projectSetup'
 import type { ProjectSetupState } from '@/types'
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { useState } from 'react'
 import { AccountBackButton } from '@/components/AccountBackButton'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
@@ -9,15 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { SmokeSuiteEditor } from '@/components/smoke/SmokeSuiteEditor'
 import { SmokeRunCreate } from '@/components/smoke/SmokeRunCreate'
 import { SmokeRunDetail } from '@/components/smoke/SmokeRunDetail'
-import { suiteCases, saveSmokeSuite, deleteSmokeSuite, createSmokeRun, nextSmokeCode, type SmokeSuiteInput, type SmokeRunInput } from '@/lib/smoke'
+import { suiteCases, nextSmokeCode, type SmokeExecutionInput, type SmokeSuiteInput, type SmokeRunInput } from '@/lib/smoke'
 import { runCounts } from '@/lib/testRuns'
-import type { ProjectArea, SmokeState, TestCase, TestCaseDictionaryValue } from '@/types'
+import type { ProjectArea, SmokeExecution, SmokeRun, SmokeRunPrerequisite, SmokeState, SmokeSuite, TestCase, TestCaseDictionaryValue } from '@/types'
 import './RequirementsPage.css'
 import './TestRunsPage.css'
 import './SmokePage.css'
 const date = (value?: string) => value ? new Date(value).toLocaleString() : '—'
-type Props = { initialExecutionId?: string; setup?: ProjectSetupState; projectId: string; data: SmokeState; cases: TestCase[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; userId?: number; onChange: Dispatch<SetStateAction<SmokeState>> }
-export function SmokePage({ initialExecutionId, setup = emptyProjectSetup, projectId, data, cases, areas, types, userId, onChange }: Props) {
+type Props = { initialExecutionId?: string; setup?: ProjectSetupState; projectId: string; data: SmokeState; cases: TestCase[]; areas: ProjectArea[]; types: TestCaseDictionaryValue[]; userId?: number; onSuiteSave: (input: SmokeSuiteInput) => Promise<SmokeSuite>; onSuiteDelete: (id: string) => Promise<void>; onRunCreate: (suiteId: string, input: SmokeRunInput) => Promise<SmokeRun>; onRunStatus: (runId: string, status: SmokeRun['status']) => Promise<void>; onExecutionSave: (id: string, input: SmokeExecutionInput) => Promise<SmokeExecution>; onPrerequisiteSave: (item: SmokeRunPrerequisite) => Promise<void> }
+export function SmokePage({ initialExecutionId, setup = emptyProjectSetup, projectId, data, cases, areas, types, onSuiteSave, onSuiteDelete, onRunCreate, onRunStatus, onExecutionSave, onPrerequisiteSave }: Props) {
   const initialRun = data.runs.find(item => item.projectId === projectId && item.id === data.executions.find(execution => execution.projectId === projectId && execution.id === initialExecutionId)?.runId)
   const [suiteId, setSuiteId] = useState(initialRun?.suiteId ?? ''), [runId, setRunId] = useState(initialRun?.id ?? ''), [creatingRun, setCreatingRun] = useState(false)
   const [editor, setEditor] = useState<SmokeSuiteInput | null>(null), [deleting, setDeleting] = useState(''), [error, setError] = useState('')
@@ -29,17 +29,17 @@ export function SmokePage({ initialExecutionId, setup = emptyProjectSetup, proje
   const tests = suiteCases(data, projectId, suiteId, casesInProject)
   const prerequisites = data.prerequisites.filter(item => item.projectId === projectId && item.suiteId === suiteId).sort((a, b) => a.order - b.order)
   function edit() { setCreatingRun(false); if (suite) setEditor({ id: suite.id, name: suite.name, description: suite.description, testCaseIds: tests.map(item => item.id), prerequisites: prerequisites.map(item => ({ id: item.id, text: item.text })) }) }
-  function save(input: SmokeSuiteInput) {
-    try { onChange(saveSmokeSuite(data, projectId, input, casesInProject)); setSuiteId(input.id); setEditor(null); return null }
-    catch (error) { return error instanceof Error ? error.message : 'Не вдалося зберегти Suite.' }
+  async function save(input: SmokeSuiteInput) {
+    try { const saved = await onSuiteSave(input); setSuiteId(saved.id); setEditor(null); return null }
+    catch (cause) { return cause instanceof Error ? cause.message : 'Не вдалося зберегти Suite.' }
   }
-  function create(input: SmokeRunInput) {
-    try { const next = createSmokeRun(data, projectId, suiteId, input, casesInProject, projectAreas, projectTypes, userId, setup); onChange(next); setRunId(next.runs[next.runs.length - 1].id); setCreatingRun(false); return null }
-    catch (error) { return error instanceof Error ? error.message : 'Не вдалося створити Smoke Run.' }
+  async function create(input: SmokeRunInput) {
+    try { const saved = await onRunCreate(suiteId, input); setRunId(saved.id); setCreatingRun(false); return null }
+    catch (cause) { return cause instanceof Error ? cause.message : 'Не вдалося створити Smoke Run.' }
   }
-  function remove() { try { onChange(deleteSmokeSuite(data, projectId, deleting)); if (suiteId === deleting) setSuiteId(''); setDeleting(''); setError('') } catch (error) { setError(error instanceof Error ? error.message : 'Не вдалося видалити Suite.') } }
+  function remove() { void onSuiteDelete(deleting).then(() => { if (suiteId === deleting) setSuiteId(''); setDeleting(''); setError('') }).catch(cause => setError(cause instanceof Error ? cause.message : 'Не вдалося видалити Suite.')) }
   return <main className="smoke-app"><header className="page-heading"><h1>Smoke</h1></header>
-    {run ? <SmokeRunDetail initialExecutionId={initialExecutionId} key={run.id} run={run} data={data} userId={userId} onChange={onChange} onBack={() => setRunId('')} /> : <>
+    {run ? <SmokeRunDetail initialExecutionId={initialExecutionId} key={run.id} run={run} data={data} onRunStatus={status => onRunStatus(run.id, status)} onExecutionSave={onExecutionSave} onPrerequisiteSave={onPrerequisiteSave} onBack={() => setRunId('')} /> : <>
       {(suite || editor) && <AccountBackButton onClick={() => { setSuiteId(''); setEditor(null); setCreatingRun(false) }}>← Smoke</AccountBackButton>}
       <div className={`tc-layout ${editor || creatingRun ? 'tc-with-panel' : ''}`}><div className="tc-list">
         {!suite ? <><div className="tc-toolbar"><AddEntityButton entity="smoke suite" onClick={() => setEditor({ id: crypto.randomUUID(), name: '', description: '', testCaseIds: [], prerequisites: [] })} /></div>

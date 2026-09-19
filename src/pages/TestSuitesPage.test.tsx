@@ -33,6 +33,7 @@ describe('General Test Suites UI', () => {
     expect(screen.getByRole('checkbox', { name: 'Select TC-001 Login valid user' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.getByRole('checkbox', { name: 'Select TC-004 Navigation link' }).getAttribute('aria-checked')).toBe('true')
     change('Name', 'Regression 2.6'); click('Create Run')
+    await screen.findByText('Draft', { selector: 'span' })
     expect(screen.getByLabelText('Source Suite').textContent).toContain('TS-001 — Regression')
     expect(screen.getByLabelText('Run progress').textContent).toContain('Progress: 0 / 3')
     const codes = within(screen.getByRole('table')).getAllByRole('button').map(button => button.textContent)
@@ -49,6 +50,7 @@ describe('General Test Suites UI', () => {
   it('isolates suites and picker by current project and keeps unsaved selection out of state', async () => {
     await open(); click('Open TS-001'); click('Edit Suite'); click('Select Test Cases'); click('Clear selection'); click('Cancel'); expect(members()).toHaveLength(3); click('Cancel')
     fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' }); fireEvent.click(await screen.findByRole('menuitemradio', { name: 'QP Notes' }))
+    await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
     expect(screen.queryByRole('button', { name: 'Open TS-001' })).toBeNull()
     click('+ Add test suite'); change('Name', 'QP suite'); click('Select Test Cases'); expect(screen.queryByRole('checkbox', { name: /TC-001/ })).toBeNull(); click('Cancel'); click('Save Suite')
     await waitFor(() => expect(screen.getByText('TS-001', { selector: 'p' })).toBeTruthy()); expect(screen.queryByText('Regression')).toBeNull()

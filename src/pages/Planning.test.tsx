@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
@@ -14,9 +14,10 @@ async function planAction(title: string, action: 'Edit' | 'Delete') {
 async function project(name: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name }))
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
 }
-function createChecklist(title = 'Form checks') {
-  click('+ Add checklist'); change('Title', title); change('Description', 'Check the form'); change('Item 1', 'Required fields'); click('Add item'); change('Item 2', 'Success message'); click('Save Checklist')
+async function createChecklist(title = 'Form checks') {
+  click('+ Add checklist'); change('Title', title); change('Description', 'Check the form'); change('Item 1', 'Required fields'); click('Add item'); change('Item 2', 'Success message'); click('Save Checklist'); await within(await screen.findByRole('complementary', { name: 'Checklist panel' })).findByText(`1. Required fields`)
 }
 
 describe('Test Plan', () => {
@@ -65,27 +66,27 @@ describe('Checklist definitions and runs', () => {
     change('Item 1', 'First'); click('Add item'); change('Item 2', 'Second'); click('Move item 2 up')
     expect((screen.getByLabelText('Item 1') as HTMLTextAreaElement).value).toBe('Second')
     click('Add item'); change('Item 3', 'Remove this'); click('Delete item 3'); click('Save Checklist')
-    expect(within(panel()).getByText('1. Second')).toBeTruthy()
-    click('Edit Checklist'); change('Title', 'Edited form checks'); change('Item 1', 'Revised'); click('Save Checklist'); click('Close checklist')
+    expect(await within(panel()).findByText('1. Second')).toBeTruthy()
+    click('Edit Checklist'); change('Title', 'Edited form checks'); change('Item 1', 'Revised'); click('Save Checklist'); await within(panel()).findByText('1. Revised'); click('Close checklist')
     expect(screen.getByRole('button', { name: 'Open Edited form checks' })).toBeTruthy()
-    await project('QP Notes'); expect(screen.queryByText('Edited form checks')).toBeNull(); createChecklist('QP checks')
+    await project('QP Notes'); expect(screen.queryByText('Edited form checks')).toBeNull(); await createChecklist('QP checks')
     await project('Voicli'); expect(screen.queryByText('QP checks')).toBeNull(); click('Open Edited form checks'); expect(within(panel()).getByText('1. Revised')).toBeTruthy()
   })
   it('creates independent runs, persists per-item results, completes read-only and retains snapshots', async () => {
-    await renderAuthenticatedApp(); click('Checklists / Чеклісти'); createChecklist(); click('Run Checklist')
-    expect(within(runPanel()).getByText('Status: In Progress')).toBeTruthy()
+    await renderAuthenticatedApp(); click('Checklists / Чеклісти'); await createChecklist(); click('Run Checklist')
+    expect(within(await screen.findByRole('complementary', { name: 'Checklist run' })).getByText('Status: In Progress')).toBeTruthy()
     change('Result 1', 'Pass'); change('Comment 1', 'All fields checked'); change('Result 2', 'Fail')
-    click('Close run'); click('Definition')
+    click('Close run'); await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Checklist run' })).toBeNull()); click('Definition')
     expect(within(panel()).getByText('1. Required fields')).toBeTruthy(); expect(within(panel()).queryByText('All fields checked')).toBeNull()
     click('Runs'); click('Run 1'); expect((screen.getByLabelText('Comment 1') as HTMLTextAreaElement).value).toBe('All fields checked')
-    click('Complete Run'); expect(within(runPanel()).getByText('Status: Completed')).toBeTruthy()
+    click('Complete Run'); expect(await within(runPanel()).findByText('Status: Completed')).toBeTruthy()
     expect(within(runPanel()).queryByRole('combobox')).toBeNull(); expect(within(runPanel()).queryByRole('textbox')).toBeNull(); expect(screen.queryByRole('button', { name: 'Complete Run' })).toBeNull()
-    click('Close run'); expect(screen.getByRole('region', { name: 'Run history' })).toBeTruthy(); click('Definition'); click('Edit Checklist'); change('Item 1', 'New definition text'); click('Save Checklist')
+    click('Close run'); await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Checklist run' })).toBeNull()); expect(screen.getByRole('region', { name: 'Run history' })).toBeTruthy(); click('Definition'); click('Edit Checklist'); change('Item 1', 'New definition text'); click('Save Checklist'); await within(panel()).findByText('1. New definition text')
     click('Runs'); click('Run 1'); expect(within(runPanel()).getByText('1. Required fields')).toBeTruthy(); expect(within(runPanel()).queryByText('New definition text')).toBeNull()
-    click('Close run'); click('Run Checklist'); expect(within(runPanel()).getByText('1. New definition text')).toBeTruthy(); expect((screen.getByLabelText('Result 1') as HTMLSelectElement).value).toBe('Not Run')
-    change('Result 1', 'Blocked'); change('Result 2', 'N/A'); click('Test Plan / План тестування'); click('Checklists / Чеклісти'); click('Open Form checks'); click('Runs'); click('Run 2')
+    click('Close run'); await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Checklist run' })).toBeNull()); click('Run Checklist'); expect(within(await screen.findByRole('complementary', { name: 'Checklist run' })).getByText('1. New definition text')).toBeTruthy(); expect((screen.getByLabelText('Result 1') as HTMLSelectElement).value).toBe('Not Run')
+    change('Result 1', 'Blocked'); change('Result 2', 'N/A'); await waitFor(() => { expect((screen.getByLabelText('Result 1') as HTMLSelectElement).value).toBe('Blocked'); expect((screen.getByLabelText('Result 2') as HTMLSelectElement).value).toBe('N/A') }); click('Test Plan / План тестування'); click('Checklists / Чеклісти'); click('Open Form checks'); click('Runs'); click('Run 2')
     expect((screen.getByLabelText('Result 1') as HTMLSelectElement).value).toBe('Blocked')
-    await project('QP Notes'); expect(screen.queryByRole('complementary')).toBeNull(); createChecklist('Other project'); click('Runs'); expect(screen.getByText('Проходжень поки немає.')).toBeTruthy()
+    await project('QP Notes'); expect(screen.queryByRole('complementary')).toBeNull(); await createChecklist('Other project'); click('Runs'); expect(screen.getByText('Проходжень поки немає.')).toBeTruthy()
     await project('Voicli'); click('Open Form checks'); click('Runs'); expect(screen.getByRole('button', { name: 'Run 1' })).toBeTruthy(); expect(screen.getByRole('button', { name: 'Run 2' })).toBeTruthy()
   })
   it('uses the same project-scoped Area dictionary as Requirements', async () => {

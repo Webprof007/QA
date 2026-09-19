@@ -14,10 +14,11 @@ import './ChecklistsPage.css'
 
 type Props = {
   projectId: string; items: Checklist[]; runs: ChecklistRun[]; areas: ProjectArea[]
-  onSave: (item: Checklist) => void; onRun: (run: ChecklistRun) => void
+  onSave: (item: Checklist) => Checklist | void | Promise<Checklist | void>; onImport?: (items: Checklist[]) => Promise<void>
+  onRunCreate?: (checklistId: string) => Promise<ChecklistRun>; onRunItemSave?: (runId: string, item: ChecklistRun['items'][number]) => Promise<void>; onRunComplete?: (runId: string) => Promise<void>; onRun?: (run: ChecklistRun) => void
   onAreaSave: (name: string, id?: string) => string | Promise<string>; onAreaRemove: (id: string) => string | Promise<string>
 }
-export function ChecklistsPage({ projectId, items, runs, areas, onSave, onRun, onAreaSave, onAreaRemove }: Props) {
+export function ChecklistsPage({ projectId, items, runs, areas, onSave, onImport, onRunCreate, onRunItemSave, onRunComplete, onRun, onAreaSave, onAreaRemove }: Props) {
   const [selectedId, setSelectedId] = useState('')
   const [draft, setDraft] = useState<Checklist | null>(null)
   const [runId, setRunId] = useState('')
@@ -35,35 +36,40 @@ export function ChecklistsPage({ projectId, items, runs, areas, onSave, onRun, o
     const id = crypto.randomUUID(), now = new Date().toISOString()
     setDraft({ id, projectId, title: '', description: '', items: [{ id: crypto.randomUUID(), checklistId: id, text: '', order: 0 }], createdAt: now, updatedAt: now }); setSelectedId(''); setRunId(''); setError(''); setTab('Definition')
   }
-  function save(event: React.FormEvent) {
+  async function save(event: React.FormEvent) {
     event.preventDefault()
     if (!draft) return
     if (!draft.title.trim()) { setError('Введіть назву checklist.'); return }
     if (!draft.items.length || draft.items.some(item => !item.text.trim())) { setError('Додайте щонайменше один заповнений пункт.'); return }
     if (draft.areaId && !projectAreas.some(area => area.id === draft.areaId)) { setError('Виберіть Area поточного проєкту.'); return }
     const saved = { ...draft, projectId, title: draft.title.trim(), items: draft.items.map((item, order) => ({ ...item, text: item.text.trim(), order })), updatedAt: new Date().toISOString() }
-    onSave(saved); setSelectedId(saved.id); setDraft(null); setError('')
+    try { const result = await onSave(saved); setSelectedId(result?.id ?? saved.id); setDraft(null); setError('') }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Не вдалося зберегти Checklist.') }
   }
   function move(index: number, direction: number) {
     if (!draft || index + direction < 0 || index + direction >= draft.items.length) return
     const items = [...draft.items]; [items[index], items[index + direction]] = [items[index + direction], items[index]]
     setDraft({ ...draft, items: items.map((item, order) => ({ ...item, order })) })
   }
-  function startRun() {
+  async function startRun() {
     if (!selected) return
-    const id = crypto.randomUUID()
-    const next: ChecklistRun = { id, projectId, checklistId: selected.id, titleSnapshot: selected.title, startedAt: new Date().toISOString(), completedAt: null, status: 'In Progress', items: [...selected.items].sort((a, b) => a.order - b.order).map(item => ({ id: crypto.randomUUID(), runId: id, checklistItemId: item.id, textSnapshot: item.text, result: 'Not Run', comment: '' })) }
-    onRun(next); setRunId(id)
+    try {
+      let next: ChecklistRun
+      if (onRunCreate) next = await onRunCreate(selected.id)
+      else { const id = crypto.randomUUID(); next = { id, projectId, checklistId: selected.id, titleSnapshot: selected.title, startedAt: new Date().toISOString(), completedAt: null, status: 'In Progress', items: [...selected.items].sort((a, b) => a.order - b.order).map(item => ({ id: crypto.randomUUID(), runId: id, checklistItemId: item.id, textSnapshot: item.text, result: 'Not Run', comment: '' })) }; onRun?.(next) }
+      setRunId(next.id); setError('')
+    }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Не вдалося створити Checklist Run.') }
   }
   const dictionary = { area: projectAreas, type: [], save: (_kind: 'area' | 'type', name: string, id?: string) => onAreaSave(name, id), remove: (_kind: 'area' | 'type', id: string) => draft?.areaId === id ? 'Area використовується у поточній чернетці.' : onAreaRemove(id) }
   return <DictionaryContext.Provider value={dictionary}><main className="smoke-app"><header className="page-heading"><h1>Checklists</h1></header>
-    <div className={`tc-layout ${active || run ? 'tc-with-panel' : ''}`}><div className="tc-list"><div className="tc-toolbar"><AddEntityButton entity="checklist" onClick={add} /><ImportExportActions kind="checklists" validate={(rows, mapping) => validateChecklists(rows, mapping, { projectId, areas: projectAreas })} onImport={imported => imported.forEach(onSave)} exportRows={exportRows('checklists', { checklists: definitions, areas: projectAreas })} /></div>
+    <div className={`tc-layout ${active || run ? 'tc-with-panel' : ''}`}><div className="tc-list"><div className="tc-toolbar"><AddEntityButton entity="checklist" onClick={add} /><ImportExportActions kind="checklists" validate={(rows, mapping) => validateChecklists(rows, mapping, { projectId, areas: projectAreas })} onImport={onImport ?? (async imported => { for (const item of imported) await onSave(item) })} exportRows={exportRows('checklists', { checklists: definitions, areas: projectAreas })} /></div>
       <table className="tc-table"><colgroup><col style={{ width: '16%' }} /><col /><col style={{ width: '17%' }} /><col style={{ width: '10%' }} /><col style={{ width: '20%' }} /></colgroup><thead><tr>{['ID', 'Title', 'Area', 'Items', 'Updated'].map(label => <th key={label}>{label}</th>)}</tr></thead>
         <tbody>{definitions.map(item => <tr key={item.id} className={selectedId === item.id ? 'tc-selected' : ''} onClick={() => open(item)}><td><button className="tc-open" aria-label={`Open ${item.title}`} title={item.id} onClick={() => open(item)}>{item.id.slice(0, 8)}</button></td><td>{item.title}</td><td>{projectAreas.find(area => area.id === item.areaId)?.name ?? '—'}</td><td>{item.items.length}</td><td>{new Date(item.updatedAt).toLocaleDateString()}</td></tr>)}</tbody>
       </table>{!definitions.length && <p className="muted">Checklists поки немає.</p>}
     </div>
-    {run ? <ChecklistRunPanel run={run} onChange={onRun} onClose={() => { setRunId(''); setTab('Runs') }} /> : active && <aside className="tc-panel" aria-label="Checklist panel"><div className="panel-heading"><h2>{draft ? selected ? 'Edit Checklist' : 'New Checklist' : active.title}</h2><Button variant="ghost" size="icon" aria-label="Close checklist" title="Close checklist" onClick={close}><X /></Button></div>
-      {!draft && <div className="tc-toolbar">{(['Definition', 'Runs'] as const).map(value => <Button key={value} variant={tab === value ? 'secondary' : 'ghost'} onClick={() => setTab(value)}>{value}</Button>)}<Button variant="outline" onClick={startRun}>Run Checklist</Button></div>}
+    {run ? <ChecklistRunPanel run={run} onItemSave={item => onRunItemSave ? onRunItemSave(run.id, item) : Promise.resolve(onRun?.({ ...run, items: run.items.map(value => value.id === item.id ? item : value) }))} onComplete={() => onRunComplete ? onRunComplete(run.id) : Promise.resolve(onRun?.({ ...run, status: 'Completed', completedAt: new Date().toISOString() }))} onClose={() => { setRunId(''); setTab('Runs') }} /> : active && <aside className="tc-panel" aria-label="Checklist panel"><div className="panel-heading"><h2>{draft ? selected ? 'Edit Checklist' : 'New Checklist' : active.title}</h2><Button variant="ghost" size="icon" aria-label="Close checklist" title="Close checklist" onClick={close}><X /></Button></div>
+      {!draft && <div className="tc-toolbar">{(['Definition', 'Runs'] as const).map(value => <Button key={value} variant={tab === value ? 'secondary' : 'ghost'} onClick={() => setTab(value)}>{value}</Button>)}<Button variant="outline" onClick={() => void startRun()}>Run Checklist</Button></div>}
       {!draft && tab === 'Runs' ? <section aria-label="Run history"><table className="tc-table"><thead><tr>{['Run', 'Date', 'Status', 'Pass', 'Fail', 'Blocked'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{history.map((entry, index) => <tr key={entry.id} onClick={() => setRunId(entry.id)}><td><button className="tc-open" onClick={() => setRunId(entry.id)}>Run {index + 1}</button></td><td>{new Date(entry.startedAt).toLocaleString()}</td><td>{entry.status}</td>{(['Pass', 'Fail', 'Blocked'] as const).map(result => <td key={result}>{entry.items.filter(item => item.result === result).length}</td>)}</tr>)}</tbody></table>{!history.length && <p>Проходжень поки немає.</p>}</section> : <form className="tc-form" onSubmit={save}>
         {!draft && <Button type="button" variant="outline" onClick={() => setDraft(structuredClone(active))}>Edit Checklist</Button>}
         <div className="field"><label htmlFor="checklist-title">Title</label>{draft ? <Input id="checklist-title" required value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} /> : <p>{active.title}</p>}</div>

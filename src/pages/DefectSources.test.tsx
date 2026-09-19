@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { setFieldValue } from '@/test/fields'
 beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }))
@@ -12,18 +12,27 @@ function addEvidence() { click('Add link'); change('Link name', 'Source proof');
 async function openSmoke() {
   await renderAuthenticatedApp(); click('Open SMK-001'); click('Run Smoke')
   change('Environment / Середовище', 'env-voicli-staging'); change('Build / Збірка', 'build-voicli-26-rc1')
-  change('Browser', 'Chrome'); click('Create Draft'); click('TC-001')
+  change('Browser', 'Chrome'); click('Create Draft')
+  await screen.findByText('Draft', { selector: 'span' })
+  click('TC-001')
 }
-function fail() {
+async function fail() {
   change('Result', 'Fail'); change('Actual Result / Фактичний результат', 'Broken product')
   change('Comment', 'Repeated twice'); click('Save result')
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Create Defect' })).toHaveProperty('disabled', false))
+}
+async function switchProject(name: string) {
+  fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitemradio', { name }))
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
 }
 describe('Smoke and Audit Defect follow-up UI', () => {
   it('creates a Defect from completed Smoke Fail and returns to unchanged snapshot/results without copying Evidence', async () => {
     await openSmoke()
     expect(screen.queryByRole('button', { name: 'Create Defect' })).toBeNull()
-    fail(); addEvidence()
+    await fail(); addEvidence()
     click('Complete Run'); click('Завершити все одно')
+    await screen.findByText('Completed', { selector: 'span' })
     expect(screen.queryByRole('button', { name: 'Save result' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Create Defect' })).toHaveProperty('disabled', false)
     click('Create Defect')
@@ -32,6 +41,7 @@ describe('Smoke and Audit Defect follow-up UI', () => {
     expect(screen.getByLabelText('Build / Збірка')).toHaveProperty('value', 'build-voicli-26-rc1')
     expect(screen.getByLabelText('Environment / Середовище')).toHaveProperty('value', 'env-voicli-staging')
     change('Title', 'Smoke regression defect'); click('Save Defect')
+    await screen.findByRole('region', { name: 'Linked Defects' })
     expect(linked().getByText(/BUG-004 — Smoke regression defect/)).toBeTruthy()
     expect(screen.getByText('Completed', { selector: 'span' })).toBeTruthy()
     expect(screen.getByText('Broken product')).toBeTruthy()
@@ -44,13 +54,16 @@ describe('Smoke and Audit Defect follow-up UI', () => {
     expect(screen.getByText('Source proof')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Save result' })).toBeNull()
     click('Link Existing Defect'); click('Link BUG-001')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Link Existing Defect' })).toBeNull())
     expect(linked().getAllByRole('button', { name: 'View Defect' })).toHaveLength(2)
   })
   it('links the same existing Defect to multiple Smoke failures and retains links per execution', async () => {
-    await openSmoke(); fail()
+    await openSmoke(); await fail()
     click('Link Existing Defect'); change('Search existing defects', 'BUG-001'); click('Link BUG-001')
+    await screen.findByRole('region', { name: 'Linked Defects' })
     expect(linked().getAllByRole('button', { name: 'View Defect' })).toHaveLength(1)
-    click('Next'); fail(); click('Link Existing Defect'); click('Link BUG-001')
+    click('Next'); await fail(); click('Link Existing Defect'); click('Link BUG-001')
+    await screen.findByRole('region', { name: 'Linked Defects' })
     expect(linked().getByText(/BUG-001/)).toBeTruthy()
     click('Link Existing Defect'); expect(screen.getByRole('button', { name: 'Link BUG-001' })).toHaveProperty('disabled', true)
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
@@ -67,6 +80,7 @@ describe('Smoke and Audit Defect follow-up UI', () => {
     expect(screen.getByLabelText('Expected result / Очікуваний результат')).toHaveProperty('value', 'Visible focus')
     expect(screen.getByLabelText('Actual result / Фактичний результат')).toHaveProperty('value', 'Invisible focus')
     change('Title', 'Focus defect'); click('Save Defect')
+    await screen.findByRole('region', { name: 'Linked Defects' })
     expect(linked().getByText(/BUG-004 — Focus defect/)).toBeTruthy()
     expect(screen.getByText('Completed', { selector: 'span' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Зберегти зміни' })).toBeNull()
@@ -77,19 +91,23 @@ describe('Smoke and Audit Defect follow-up UI', () => {
     click('View Finding')
     expect(screen.getByRole('heading', { name: 'Focus finding' })).toBeTruthy()
     click('Link Existing Defect'); click('Link BUG-001')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Link Existing Defect' })).toBeNull())
     expect(linked().getAllByRole('button', { name: 'View Defect' })).toHaveLength(2)
   })
   it('links existing to multiple Audit Findings and hides foreign project Defects from picker', async () => {
     await renderAuthenticatedApp(); click('Defects / Дефекти')
-    fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' }); fireEvent.click(await screen.findByRole('menuitemradio', { name: 'QP Notes' }))
+    await switchProject('QP Notes')
     click('+ Add defect'); change('Title', 'Foreign only'); click('Save Defect')
-    fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' }); fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Voicli' }))
+    await screen.findAllByText('Foreign only')
+    await switchProject('Voicli')
     click('Audit / Аудит'); click('AUDIT-001')
     const rows = () => document.querySelectorAll('.audit-compact-row')
     fireEvent.click(rows()[0]); click('Link Existing Defect')
     expect(screen.queryByText(/Foreign only/)).toBeNull()
     click('Link BUG-001')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Link Existing Defect' })).toBeNull())
     fireEvent.click(rows()[1]); click('Link Existing Defect'); click('Link BUG-001')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Link Existing Defect' })).toBeNull())
     expect(linked().getByText(/BUG-001/)).toBeTruthy()
     fireEvent.click(rows()[0]); expect(linked().getByText(/BUG-001/)).toBeTruthy()
     change('Назва', 'Unsaved finding')

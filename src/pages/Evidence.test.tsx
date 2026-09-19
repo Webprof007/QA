@@ -28,6 +28,7 @@ describe('Shared owner Evidence integration', () => {
     if (mode === 'test') {
       click('Test Runs / Запуски тестів'); click('+ Add test run'); change('Name', 'Evidence run'); click('Select all visible'); click('Create Run')
     } else { click('Open SMK-001'); click('Run Smoke'); click('Create Draft') }
+    await screen.findByText('Draft', { selector: 'span' })
     click('TC-001')
     addFile(section(), 'execution.log')
     addLink(section(), 'Recording')
@@ -35,6 +36,7 @@ describe('Shared owner Evidence integration', () => {
     click('Next'); expect(within(section()).queryByText('execution.log')).toBeNull()
     click('Previous'); expect(within(section()).getByText('execution.log')).toBeTruthy()
     click('Complete Run'); click('Завершити все одно')
+    await screen.findByText('Completed', { selector: 'span' })
     expect(within(section()).queryByRole('button', { name: 'Add file' })).toBeNull()
     expect(within(section()).queryByRole('button', { name: /Remove/ })).toBeNull()
     expect(within(section()).getByRole('link', { name: 'Open link' }).getAttribute('rel')).toBe('noopener noreferrer')
@@ -65,7 +67,7 @@ describe('Shared owner Evidence integration', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:evidence-1')
     click('Retest'); change('Environment / Середовище', 'env-voicli-staging'); change('Result', 'Pass')
     addFile(draftSection(), 'retest.log'); addLink(draftSection(), 'Fixed proof')
-    click('Save Retest'); click('Retest #1')
+    click('Save Retest'); fireEvent.click(await screen.findByRole('button', { name: 'Retest #1' }))
     const detail = within(screen.getByRole('region', { name: 'Retest details' }))
     expect(detail.getByText('retest.log')).toBeTruthy()
     expect(detail.getByText('Fixed proof')).toBeTruthy()

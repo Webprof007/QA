@@ -1,15 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
-import type { Project, ProjectArea, Requirement, RequirementTestCaseLink, TestCase, TestCaseDictionaryValue, TestPlan, TestSuite, TestSuiteTestCaseLink } from '@/types'
+import type { Checklist, ChecklistRun, DefectRetest, DefectsState, Project, ProjectArea, ProjectSetupState, Requirement, RequirementTestCaseLink, SmokeState, TestCase, TestCaseDictionaryValue, TestPlan, TestRunsState, TestSuite, TestSuiteTestCaseLink } from '@/types'
 
 const apiFixture = vi.hoisted<{ reset: () => void }>(() => ({ reset: () => undefined }))
 
 vi.mock('@/lib/qaApi', async () => {
-  const [{ projects }, { createProjectAreaData }, { initialRequirementTestCaseLinks }, { createTestSuitesMockData }] = await Promise.all([
+  const [{ projects }, { createProjectAreaData }, { initialRequirementTestCaseLinks }, { createTestSuitesMockData }, { createProjectSetupMockData }, { createSmokeMockData }, { createDefectsMockData }] = await Promise.all([
     import('@/data/mockData'), import('@/data/projectAreaMockData'), import('@/data/requirementsMockData'),
-    import('@/data/testSuitesMockData'),
+    import('@/data/testSuitesMockData'), import('@/data/projectSetupMockData'), import('@/data/smokeMockData'), import('@/data/defectsMockData'),
   ])
-  let projectItems: Project[] = [], areas: ProjectArea[] = [], requirements: Requirement[] = [], cases: TestCase[] = [], types: TestCaseDictionaryValue[] = [], plans: TestPlan[] = [], links: RequirementTestCaseLink[] = [], suites: TestSuite[] = [], suiteLinks: TestSuiteTestCaseLink[] = []
+  const [{ createTestRun, changeRunStatus, saveExecution }, { deleteSmokeSuite, createSmokeRun, changeSmokeRunStatus, saveSmokeExecution, saveSmokeRunPrerequisite }, { saveChecklistRun }, { retestSource }] = await Promise.all([import('@/lib/testRuns'), import('@/lib/smoke'), import('@/lib/checklists'), import('@/lib/defectRetests')])
+  let projectItems: Project[] = [], areas: ProjectArea[] = [], requirements: Requirement[] = [], cases: TestCase[] = [], types: TestCaseDictionaryValue[] = [], plans: TestPlan[] = [], links: RequirementTestCaseLink[] = [], suites: TestSuite[] = [], suiteLinks: TestSuiteTestCaseLink[] = [], setup: ProjectSetupState, testRuns: TestRunsState, defects: DefectsState, retests: DefectRetest[], checklists: Checklist[], checklistRuns: ChecklistRun[], smoke: SmokeState
   const reset = () => {
     const seed = createProjectAreaData()
     projectItems = structuredClone(projects)
@@ -22,6 +23,13 @@ vi.mock('@/lib/qaApi', async () => {
     const suiteSeed = createTestSuitesMockData(cases)
     suites = structuredClone(suiteSeed.suites)
     suiteLinks = structuredClone(suiteSeed.links)
+    setup = createProjectSetupMockData()
+    testRuns = { runs: [], executions: [] }
+    defects = createDefectsMockData()
+    retests = []
+    checklists = []
+    checklistRuns = []
+    smoke = createSmokeMockData(cases)
   }
   apiFixture.reset = reset
   reset()
@@ -85,6 +93,46 @@ vi.mock('@/lib/qaApi', async () => {
     saveTestSuiteTestCaseLinks: async (projectId: string, suiteId: string, testCaseIds: string[]) => {
       suiteLinks = [...suiteLinks.filter(item => item.projectId !== projectId || item.suiteId !== suiteId), ...[...new Set(testCaseIds)].map((testCaseId, order) => ({ projectId, suiteId, testCaseId, order }))]
     },
+    loadEnvironments: async (projectId: string) => structuredClone(setup.environments.filter(item => item.projectId === projectId)),
+    loadReleases: async (projectId: string) => structuredClone(setup.releases.filter(item => item.projectId === projectId)),
+    loadBuilds: async (projectId: string) => structuredClone(setup.builds.filter(item => item.projectId === projectId)),
+    saveEnvironmentApi: async (item: ProjectSetupState['environments'][number]) => { setup.environments = [...setup.environments.filter(value => value.id !== item.id), structuredClone(item)]; return structuredClone(item) },
+    saveReleaseApi: async (item: ProjectSetupState['releases'][number]) => { setup.releases = [...setup.releases.filter(value => value.id !== item.id), structuredClone(item)]; return structuredClone(item) },
+    saveBuildApi: async (item: ProjectSetupState['builds'][number]) => { setup.builds = [...setup.builds.filter(value => value.id !== item.id), structuredClone(item)]; return structuredClone(item) },
+    deleteEnvironmentApi: async (_projectId: string, id: string) => { setup.environments = setup.environments.filter(item => item.id !== id) },
+    deleteBuildApi: async (_projectId: string, id: string) => { setup.builds = setup.builds.filter(item => item.id !== id) },
+    loadTestRuns: async (projectId: string) => structuredClone(testRuns.runs.filter(item => item.projectId === projectId)),
+    loadTestExecutions: async (projectId: string) => structuredClone(testRuns.executions.filter(item => item.projectId === projectId)),
+    createTestRunApi: async (projectId: string, input: Parameters<typeof createTestRun>[1]) => { const state = createTestRun(projectId, input, cases, plans, areas, types, suites, setup); testRuns = { runs: [...testRuns.runs, ...state.runs], executions: [...testRuns.executions, ...state.executions] }; return { run: structuredClone(state.runs[0]), executions: structuredClone(state.executions) } },
+    updateTestRunStatusApi: async (projectId: string, id: string, status: 'In Progress' | 'Completed') => { testRuns = changeRunStatus(testRuns, projectId, id, status); return structuredClone(testRuns.runs.find(item => item.id === id)!) },
+    saveTestExecutionApi: async (projectId: string, id: string, input: Parameters<typeof saveExecution>[3]) => { testRuns = saveExecution(testRuns, projectId, id, input, 42); return structuredClone(testRuns.executions.find(item => item.id === id)!) },
+    loadDefects: async (projectId: string) => structuredClone(defects.items.filter(item => item.projectId === projectId)),
+    loadDefectSourceLinks: async (projectId: string) => structuredClone(defects.links.filter(item => item.projectId === projectId)),
+    loadDefectRetests: async (projectId: string) => structuredClone(retests.filter(item => item.projectId === projectId)),
+    saveDefectApi: async (item: DefectsState['items'][number], creating: boolean) => { const saved = structuredClone(item); defects.items = creating ? [...defects.items, saved] : defects.items.map(value => value.id === saved.id ? saved : value); return saved },
+    createDefectSourceLinkApi: async (link: DefectsState['links'][number]) => { defects.links = [...defects.links, structuredClone(link)] },
+    createDefectRetestApi: async (projectId: string, defectId: string, input: Pick<DefectRetest, 'environmentId' | 'buildId' | 'result' | 'actualResult' | 'comment' | 'evidenceNote'>) => { const now = new Date().toISOString(), defect = defects.items.find(item => item.projectId === projectId && item.id === defectId)!; const context = retestSource(defect, cases, testRuns, areas, types, retests, smoke); const saved: DefectRetest = { id: crypto.randomUUID(), projectId, defectId, ...input, ...context, sourceTestCaseId: defect.sourceTestCaseId, sourceExecutionId: defect.source?.type === 'testExecution' ? defect.source.id : undefined, environmentNameSnapshot: setup.environments.find(item => item.id === input.environmentId)?.name, buildVersionSnapshot: setup.builds.find(item => item.id === input.buildId)?.version, executedAt: now, createdAt: now, executedByUserId: 42 }; retests = [...retests, saved]; return structuredClone(saved) },
+    loadChecklists: async (projectId: string) => structuredClone(checklists.filter(item => item.projectId === projectId)),
+    loadChecklistRuns: async (projectId: string) => structuredClone(checklistRuns.filter(item => item.projectId === projectId).map(item => ({ ...item, items: [] }))),
+    loadChecklistRunItems: async (projectId: string) => structuredClone(checklistRuns.filter(item => item.projectId === projectId).flatMap(item => item.items)),
+    saveChecklistApi: async (item: Checklist, creating: boolean) => { const saved = structuredClone(item); checklists = creating ? [...checklists, saved] : checklists.map(value => value.id === saved.id ? saved : value); return saved },
+    createChecklistRunApi: async (projectId: string, checklistId: string) => { const definition = checklists.find(item => item.id === checklistId)!; const runId = crypto.randomUUID(); const saved: ChecklistRun = { id: runId, projectId, checklistId, titleSnapshot: definition.title, startedAt: new Date().toISOString(), completedAt: null, status: 'In Progress', items: definition.items.map(item => ({ id: crypto.randomUUID(), runId, checklistItemId: item.id, textSnapshot: item.text, result: 'Not Run', comment: '' })) }; checklistRuns = saveChecklistRun(checklistRuns, projectId, saved, checklists); return structuredClone(saved) },
+    saveChecklistRunItemApi: async (_projectId: string, item: ChecklistRun['items'][number]) => { checklistRuns = checklistRuns.map(run => ({ ...run, items: run.items.map(value => value.id === item.id ? structuredClone(item) : value) })); return structuredClone(item) },
+    updateChecklistRunApi: async (_projectId: string, id: string) => { checklistRuns = checklistRuns.map(run => run.id === id ? { ...run, status: 'Completed', completedAt: new Date().toISOString() } : run); return structuredClone(checklistRuns.find(run => run.id === id)!) },
+    loadSmokeSuites: async (projectId: string) => structuredClone(smoke.suites.filter(item => item.projectId === projectId)),
+    loadSmokeSuiteLinks: async (projectId: string) => structuredClone(smoke.links.filter(item => item.projectId === projectId)),
+    loadSmokePrerequisites: async (projectId: string) => structuredClone(smoke.prerequisites.filter(item => item.projectId === projectId)),
+    loadSmokeRuns: async (projectId: string) => structuredClone(smoke.runs.filter(item => item.projectId === projectId)),
+    loadSmokeRunPrerequisites: async (projectId: string) => structuredClone(smoke.runPrerequisites.filter(item => item.projectId === projectId)),
+    loadSmokeExecutions: async (projectId: string) => structuredClone(smoke.executions.filter(item => item.projectId === projectId)),
+    saveSmokeSuiteApi: async (item: SmokeState['suites'][number], creating: boolean) => { const saved = structuredClone(item); smoke.suites = creating ? [...smoke.suites, saved] : smoke.suites.map(value => value.id === saved.id ? saved : value); return saved },
+    saveSmokeSuiteLinksApi: async (projectId: string, suiteId: string, ids: string[]) => { smoke.links = [...smoke.links.filter(item => item.projectId !== projectId || item.suiteId !== suiteId), ...ids.map((testCaseId, order) => ({ projectId, suiteId, testCaseId, order }))] },
+    replaceSmokePrerequisitesApi: async (projectId: string, suiteId: string, values: { text: string }[]) => { smoke.prerequisites = [...smoke.prerequisites.filter(item => item.projectId !== projectId || item.suiteId !== suiteId), ...values.map((item, order) => ({ id: crypto.randomUUID(), projectId, suiteId, text: item.text, order }))] },
+    deleteSmokeSuiteApi: async (projectId: string, id: string) => { smoke = deleteSmokeSuite(smoke, projectId, id) },
+    createSmokeRunApi: async (projectId: string, suiteId: string, input: Parameters<typeof createSmokeRun>[3]) => { const next = createSmokeRun(smoke, projectId, suiteId, input, cases, areas, types, 42, setup); const run = next.runs.at(-1)!; const executions = next.executions.filter(item => item.runId === run.id), prerequisites = next.runPrerequisites.filter(item => item.runId === run.id); smoke = next; return { run: structuredClone(run), executions: structuredClone(executions), prerequisites: structuredClone(prerequisites) } },
+    updateSmokeRunApi: async (projectId: string, id: string, status: 'Draft' | 'In Progress' | 'Completed') => { smoke = changeSmokeRunStatus(smoke, projectId, id, status === 'Draft' ? 'In Progress' : status); return structuredClone(smoke.runs.find(item => item.id === id)!) },
+    saveSmokeExecutionApi: async (projectId: string, id: string, input: Parameters<typeof saveSmokeExecution>[3]) => { smoke = saveSmokeExecution(smoke, projectId, id, input, 42); return structuredClone(smoke.executions.find(item => item.id === id)!) },
+    saveSmokeRunPrerequisiteApi: async (projectId: string, item: SmokeState['runPrerequisites'][number]) => { smoke = saveSmokeRunPrerequisite(smoke, projectId, item.id, item); return structuredClone(smoke.runPrerequisites.find(value => value.id === item.id)!) },
   }
 })
 

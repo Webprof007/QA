@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { setFieldValue } from '@/test/fields'
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 
 afterEach(cleanup)
@@ -14,6 +14,7 @@ const openAudit = async () => { await renderAuthenticatedApp(); click('Audit / �
 async function projectMenu(item: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
   fireEvent.click(await screen.findByRole('menuitemradio', { name: item }))
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
 }
 async function rowMenu(id: string, action: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: `Дії із зауваженням ${id}` }), { key: 'Enter' })

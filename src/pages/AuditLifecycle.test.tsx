@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { setFieldValue } from '@/test/fields'
 beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }))
@@ -9,7 +9,11 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 const change = (name: string, value: string) => setFieldValue(screen.getByLabelText(name), value)
 const findings = () => within(screen.getByRole('region', { name: 'Зауваження Audit' }))
 async function open() { await renderAuthenticatedApp(); click('Audit / Аудит') }
-async function project(name: string) { fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' }); fireEvent.click(await screen.findByRole('menuitemradio', { name })) }
+async function project(name: string) {
+  fireEvent.keyDown(screen.getByRole('button', { name: /^Project:/ }), { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitemradio', { name }))
+  await waitFor(() => expect(screen.queryByText('Завантаження даних проєкту…')).toBeNull())
+}
 describe('Audit sessions UI', () => {
   it('creates/edits/cancels metadata and scopes findings/checks to the selected audit', async () => {
     await open(); click('+ Add audit'); change('Title / Назва', 'Second session'); change('Objective / Мета', 'Review keyboard navigation'); change('Scope / Обсяг', 'Login'); change('Limitations / Обмеження', 'Desktop only'); change('Audit type', 'accessibility'); click('Save Audit')

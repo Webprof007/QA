@@ -1,19 +1,16 @@
 import { DefectContext } from '@/components/defects/defectContext'
 import type { DefectSourceRef } from '@/types'
-import { saveRetest, retestTransition } from '@/lib/defectRetests'
+import { retestTransition } from '@/lib/defectRetests'
 import type { DefectRetest } from '@/types'
-import { ProjectSettingsPage } from '@/pages/ProjectSettingsPage'
-import { createProjectSetupMockData } from '@/data/projectSetupMockData'
+import { ProjectSettingsPage, type ProjectSetupDraft } from '@/pages/ProjectSettingsPage'
+import { saveBuild, saveEnvironment, saveRelease } from '@/lib/projectSetup'
 import { TestSuitesPage } from '@/pages/TestSuitesPage'
 import { validateTestSuiteInput, type TestSuiteInput } from '@/lib/testSuites'
-import { createSmokeMockData } from '@/data/smokeMockData'
-import { saveChecklistRun } from '@/lib/checklists'
 import { CoveragePage } from '@/pages/CoveragePage'
 import { requirementsWithLinks, replaceCoverageLinks } from '@/lib/coverage'
 import type { RequirementsViewState } from '@/types'
 import { DefectsPage } from '@/pages/DefectsPage'
-import { createDefectsMockData } from '@/data/defectsMockData'
-import { saveDefect, linkSourceDefect, resolveDefectSource } from '@/lib/defects'
+import { resolveDefectSource, saveDefect } from '@/lib/defects'
 import { AccountBarSlotContext } from '@/components/accountBarContext'
 import { TestRunsPage } from '@/pages/TestRunsPage'
 import { createProjectAreaData } from '@/data/projectAreaMockData'
@@ -33,12 +30,13 @@ import { ProjectCreateDialog } from '@/components/ProjectCreateDialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { SmokePage } from '@/pages/SmokePage'
+import { saveSmokeSuite } from '@/lib/smoke'
 import { AuditPage } from '@/pages/AuditPage'
 import { PasswordRecoveryPage } from '@/pages/PasswordRecoveryPage'
 import { AuthPage } from '@/pages/AuthPage'
 import { saveAudit, transitionAudit, saveAuditCheck, saveAuditFinding, removeAuditFinding } from '@/lib/audit'
 import { initialAudits, initialAuditTypes } from '@/data/auditMockData'
-import type { AuditState, Checklist, ChecklistRun, TestPlan, TestRunsState, TestCasesProjectState, TestSuitesState, Page, Project } from '@/types'
+import type { AuditState, Checklist, ChecklistRun, DefectsState, ProjectSetupState, SmokeState, TestPlan, TestRunsState, TestCasesProjectState, TestSuitesState, Page, Project } from '@/types'
 import './AppShell.css'
 import './App.css'
 import './styles/EntityWorkspace.css'
@@ -47,6 +45,7 @@ import { useAuth, type AuthUser } from '@/hooks/useAuth'
 import { CheckEmailPage } from '@/pages/CheckEmailPage'
 import { ApiError, errorMessage } from '@/lib/api'
 import { createProject as createProjectApi, createRequirementTestCaseLink, deleteArea as deleteAreaApi, deleteProject as deleteProjectApi, deleteRequirement as deleteRequirementApi, deleteRequirementTestCaseLink, deleteTestCase as deleteTestCaseApi, deleteTestCaseType, deleteTestPlan as deleteTestPlanApi, deleteTestSuite as deleteTestSuiteApi, loadAreas, loadProjects, loadRequirementTestCaseLinks, loadRequirements, loadTestCases, loadTestCaseTypes, loadTestPlans, loadTestSuiteTestCaseLinks, loadTestSuites, saveArea as saveAreaApi, saveRequirement as saveRequirementApi, saveTestCase as saveTestCaseApi, saveTestCaseType, saveTestPlan as saveTestPlanApi, saveTestSuite as saveTestSuiteApi, saveTestSuiteTestCaseLinks } from '@/lib/qaApi'
+import { createChecklistRunApi, createDefectRetestApi, createDefectSourceLinkApi, createSmokeRunApi, createTestRunApi, deleteBuildApi, deleteEnvironmentApi, deleteSmokeSuiteApi, loadBuilds, loadChecklistRunItems, loadChecklistRuns, loadChecklists, loadDefectRetests, loadDefectSourceLinks, loadDefects, loadEnvironments, loadReleases, loadSmokeExecutions, loadSmokePrerequisites, loadSmokeRunPrerequisites, loadSmokeRuns, loadSmokeSuiteLinks, loadSmokeSuites, loadTestExecutions, loadTestRuns, replaceSmokePrerequisitesApi, saveBuildApi, saveChecklistApi, saveChecklistRunItemApi, saveDefectApi, saveEnvironmentApi, saveReleaseApi, saveSmokeExecutionApi, saveSmokeRunPrerequisiteApi, saveSmokeSuiteApi, saveSmokeSuiteLinksApi, saveTestExecutionApi, updateChecklistRunApi, updateSmokeRunApi, updateTestRunStatusApi } from '@/lib/qaApi'
 
 function lastPageFor(userId: number, projectKey: string, fallback: Page = 'Settings'): Page {
   try {
@@ -96,14 +95,14 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   const [projectDataLoading, setProjectDataLoading] = useState(false)
   const [backendError, setBackendError] = useState('')
   const [page, setPage] = useState<Page>('Settings')
-  const [projectSetup, setProjectSetup] = useState(createProjectSetupMockData)
+  const [projectSetup, setProjectSetup] = useState<ProjectSetupState>({ environments: [], releases: [], builds: [] })
   const [seed] = useState(createProjectAreaData)
   const [testSuites, setTestSuites] = useState<TestSuitesState>({ suites: [], links: [] })
   const [suiteTarget, setSuiteTarget] = useState<{ id?: string; key: number }>({ key: 0 })
-  const [smoke, setSmoke] = useState(() => createSmokeMockData(Object.values(seed.testCases).flatMap(data => data.items)))
+  const [smoke, setSmoke] = useState<SmokeState>({ suites: [], links: [], prerequisites: [], runs: [], runPrerequisites: [], executions: [] })
   const [projectAreas, setProjectAreas] = useState<import('@/types').ProjectArea[]>([])
   const [defectRetests, setDefectRetests] = useState<DefectRetest[]>([])
-  const [defects, setDefects] = useState(createDefectsMockData)
+  const [defects, setDefects] = useState<DefectsState>({ items: [], links: [] })
   const [defectTarget, setDefectTarget] = useState<{ id?: string; source?: DefectSourceRef; key: number }>({ key: 0 })
   const [followupTarget, setFollowupTarget] = useState<{ source?: DefectSourceRef; key: number }>({ key: 0 })
   const [executionTarget, setExecutionTarget] = useState<{ id?: string; runId?: string; sourceSuiteId?: string; key: number }>({ key: 0 })
@@ -145,6 +144,7 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
 
   const apiFailure = useCallback((error: unknown) => {
     if (error instanceof ApiError && error.status === 401) onUnauthorized()
+    if (error instanceof Error && !(error instanceof ApiError)) return error.message
     return errorMessage(error)
   }, [onUnauthorized])
 
@@ -171,8 +171,11 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   useEffect(() => {
     if (!projectId) return
     const controller = new AbortController(), selectedProjectId = projectId
-    void Promise.allSettled([loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal), loadTestCases(selectedProjectId, controller.signal), loadRequirementTestCaseLinks(selectedProjectId, controller.signal), loadTestSuites(selectedProjectId, controller.signal), loadTestSuiteTestCaseLinks(selectedProjectId, controller.signal)])
-      .then(([areas, requirements, plans, types, cases, links, suites, suiteLinks]) => {
+    void Promise.allSettled([
+      loadAreas(selectedProjectId, controller.signal), loadRequirements(selectedProjectId, controller.signal), loadTestPlans(selectedProjectId, controller.signal), loadTestCaseTypes(selectedProjectId, controller.signal), loadTestCases(selectedProjectId, controller.signal), loadRequirementTestCaseLinks(selectedProjectId, controller.signal), loadTestSuites(selectedProjectId, controller.signal), loadTestSuiteTestCaseLinks(selectedProjectId, controller.signal),
+      loadEnvironments(selectedProjectId, controller.signal), loadReleases(selectedProjectId, controller.signal), loadBuilds(selectedProjectId, controller.signal), loadTestRuns(selectedProjectId, controller.signal), loadTestExecutions(selectedProjectId, controller.signal), loadDefects(selectedProjectId, controller.signal), loadDefectSourceLinks(selectedProjectId, controller.signal), loadDefectRetests(selectedProjectId, controller.signal), loadChecklists(selectedProjectId, controller.signal), loadChecklistRuns(selectedProjectId, controller.signal), loadChecklistRunItems(selectedProjectId, controller.signal), loadSmokeSuites(selectedProjectId, controller.signal), loadSmokeSuiteLinks(selectedProjectId, controller.signal), loadSmokePrerequisites(selectedProjectId, controller.signal), loadSmokeRuns(selectedProjectId, controller.signal), loadSmokeRunPrerequisites(selectedProjectId, controller.signal), loadSmokeExecutions(selectedProjectId, controller.signal),
+    ])
+      .then(([areas, requirements, plans, types, cases, links, suites, suiteLinks, environments, releases, builds, runs, executions, defectItems, defectLinks, retests, checklistItems, checklistRunItems, checklistItemsInRuns, smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions]) => {
         if (controller.signal.aborted) return
         if (areas.status === 'fulfilled') setProjectAreas(current => [...current.filter(item => item.projectId !== selectedProjectId), ...areas.value])
         if (requirements.status === 'fulfilled') setRequirementsByProject(current => ({ ...current, [selectedProjectId]: { items: requirements.value } }))
@@ -187,7 +190,31 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
           suites: suites.status === 'fulfilled' ? [...current.suites.filter(item => item.projectId !== selectedProjectId), ...suites.value] : current.suites,
           links: suiteLinks.status === 'fulfilled' ? [...current.links.filter(item => item.projectId !== selectedProjectId), ...suiteLinks.value] : current.links,
         }))
-        const failure = [areas, requirements, plans, types, cases, links, suites, suiteLinks].find(result => result.status === 'rejected')
+        if (environments.status === 'fulfilled' || releases.status === 'fulfilled' || builds.status === 'fulfilled') setProjectSetup(current => ({
+          environments: environments.status === 'fulfilled' ? [...current.environments.filter(item => item.projectId !== selectedProjectId), ...environments.value] : current.environments,
+          releases: releases.status === 'fulfilled' ? [...current.releases.filter(item => item.projectId !== selectedProjectId), ...releases.value] : current.releases,
+          builds: builds.status === 'fulfilled' ? [...current.builds.filter(item => item.projectId !== selectedProjectId), ...builds.value] : current.builds,
+        }))
+        if (runs.status === 'fulfilled' || executions.status === 'fulfilled') setTestRunData(current => ({ runs: runs.status === 'fulfilled' ? [...current.runs.filter(item => item.projectId !== selectedProjectId), ...runs.value] : current.runs, executions: executions.status === 'fulfilled' ? [...current.executions.filter(item => item.projectId !== selectedProjectId), ...executions.value] : current.executions }))
+        if (defectItems.status === 'fulfilled' || defectLinks.status === 'fulfilled') setDefects(current => ({
+          items: defectItems.status === 'fulfilled' ? [...current.items.filter(item => item.projectId !== selectedProjectId), ...defectItems.value] : current.items,
+          links: defectLinks.status === 'fulfilled' ? [...current.links.filter(item => item.projectId !== selectedProjectId || item.sourceType === 'auditFinding'), ...defectLinks.value.filter(item => item.sourceType !== 'auditFinding')] : current.links,
+        }))
+        if (retests.status === 'fulfilled') setDefectRetests(current => [...current.filter(item => item.projectId !== selectedProjectId), ...retests.value])
+        if (checklistItems.status === 'fulfilled') setChecklists(current => [...current.filter(item => item.projectId !== selectedProjectId), ...checklistItems.value])
+        if (checklistRunItems.status === 'fulfilled') {
+          const items = checklistItemsInRuns.status === 'fulfilled' ? checklistItemsInRuns.value : []
+          setChecklistRuns(current => [...current.filter(item => item.projectId !== selectedProjectId), ...checklistRunItems.value.map(run => ({ ...run, items: items.filter(item => item.runId === run.id) }))])
+        }
+        if ([smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions].some(result => result.status === 'fulfilled')) setSmoke(current => ({
+          suites: smokeSuites.status === 'fulfilled' ? [...current.suites.filter(item => item.projectId !== selectedProjectId), ...smokeSuites.value] : current.suites,
+          links: smokeLinks.status === 'fulfilled' ? [...current.links.filter(item => item.projectId !== selectedProjectId), ...smokeLinks.value] : current.links,
+          prerequisites: smokePrerequisites.status === 'fulfilled' ? [...current.prerequisites.filter(item => item.projectId !== selectedProjectId), ...smokePrerequisites.value] : current.prerequisites,
+          runs: smokeRuns.status === 'fulfilled' ? [...current.runs.filter(item => item.projectId !== selectedProjectId), ...smokeRuns.value] : current.runs,
+          runPrerequisites: smokeRunPrerequisites.status === 'fulfilled' ? [...current.runPrerequisites.filter(item => item.projectId !== selectedProjectId), ...smokeRunPrerequisites.value] : current.runPrerequisites,
+          executions: smokeExecutions.status === 'fulfilled' ? [...current.executions.filter(item => item.projectId !== selectedProjectId), ...smokeExecutions.value] : current.executions,
+        }))
+        const failure = [areas, requirements, plans, types, cases, links, suites, suiteLinks, environments, releases, builds, runs, executions, defectItems, defectLinks, retests, checklistItems, checklistRunItems, checklistItemsInRuns, smokeSuites, smokeLinks, smokePrerequisites, smokeRuns, smokeRunPrerequisites, smokeExecutions].find(result => result.status === 'rejected')
         setBackendError(failure?.status === 'rejected' ? apiFailure(failure.reason) : '')
       })
       .finally(() => { if (!controller.signal.aborted) setProjectDataLoading(false) })
@@ -341,6 +368,31 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
     setTestCasesByProject(current => ({ ...current, [projectId]: { items: current[projectId]?.items ?? [], types: (current[projectId]?.types ?? []).filter(type => type.id !== id) } }))
     return ''
   }
+  async function saveProjectSetup(draft: ProjectSetupDraft) {
+    try {
+      const creating = !projectSetup[draft.kind === 'Environment' ? 'environments' : draft.kind === 'Release' ? 'releases' : 'builds'].some(item => item.id === draft.value.id && item.projectId === projectId)
+      if (draft.kind === 'Environment') {
+        const candidate = saveEnvironment(projectSetup, projectId, draft.value).environments.find(item => item.id === draft.value.id)!
+        const saved = await saveEnvironmentApi(candidate, creating)
+        setProjectSetup(current => ({ ...current, environments: [...current.environments.filter(item => item.id !== saved.id && item.id !== draft.value.id), saved] }))
+      } else if (draft.kind === 'Release') {
+        const candidate = saveRelease(projectSetup, projectId, draft.value).releases.find(item => item.id === draft.value.id)!
+        const saved = await saveReleaseApi(candidate, creating)
+        setProjectSetup(current => ({ ...current, releases: [...current.releases.filter(item => item.id !== saved.id && item.id !== draft.value.id), saved] }))
+      } else {
+        const candidate = saveBuild(projectSetup, projectId, draft.value).builds.find(item => item.id === draft.value.id)!
+        const saved = await saveBuildApi(candidate, creating)
+        setProjectSetup(current => ({ ...current, builds: [...current.builds.filter(item => item.id !== saved.id && item.id !== draft.value.id), saved] }))
+      }
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function deleteProjectSetup(kind: 'environments' | 'builds', id: string) {
+    try {
+      if (kind === 'environments') await deleteEnvironmentApi(projectId, id)
+      else await deleteBuildApi(projectId, id)
+      setProjectSetup(current => ({ ...current, [kind]: current[kind].filter(item => item.projectId !== projectId || item.id !== id) }))
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
   async function saveRequirementRemote(item: import('@/types').RequirementWithTestCases, creating: boolean) {
     try {
       const saved = await saveRequirementApi(item, creating)
@@ -434,6 +486,27 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       setTestSuites(current => ({ suites: current.suites.filter(item => item.projectId !== projectId || item.id !== id), links: current.links.filter(item => item.projectId !== projectId || item.suiteId !== id) }))
     } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
   }
+  async function createTestRunRemote(input: import('@/lib/testRuns').RunInput) {
+    try {
+      const ids = [...new Set(input.testCaseIds)]
+      if (!input.name.trim()) throw new Error('Введіть назву запуску.')
+      if (!ids.length || ids.some(id => !(testCasesByProject[projectId]?.items ?? []).some(item => item.id === id && item.projectId === projectId))) throw new Error('Виберіть Test Cases поточного проєкту.')
+      if (input.testPlanId && !testPlans.some(item => item.id === input.testPlanId && item.projectId === projectId)) throw new Error('Виберіть Test Plan поточного проєкту.')
+      if (input.sourceTestSuiteId && !testSuites.suites.some(item => item.id === input.sourceTestSuiteId && item.projectId === projectId)) throw new Error('Test Suite належить іншому проєкту.')
+      const created = await createTestRunApi(projectId, { ...input, testCaseIds: ids })
+      const executions = created.executions.length ? created.executions : await loadTestExecutions(projectId)
+      setTestRunData(current => ({ runs: [...current.runs.filter(item => item.projectId !== projectId || item.id !== created.run.id), created.run], executions: created.executions.length ? [...current.executions, ...executions] : [...current.executions.filter(item => item.projectId !== projectId), ...executions] }))
+      return created.run
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function updateTestRunStatus(id: string, status: import('@/types').TestRun['status']) {
+    try { const saved = await updateTestRunStatusApi(projectId, id, status); setTestRunData(current => ({ ...current, runs: current.runs.map(item => item.projectId === projectId && item.id === id ? saved : item) })) }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function saveTestExecutionRemote(id: string, input: import('@/lib/testRuns').ExecutionInput) {
+    try { const saved = await saveTestExecutionApi(projectId, id, input); setTestRunData(current => ({ ...current, executions: current.executions.map(item => item.projectId === projectId && item.id === id ? saved : item) })); return saved }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
   function openTestSuite(id: string) {
     if (!testSuites.suites.some(item => item.projectId === projectId && item.id === id)) return
     setSuiteTarget(current => ({ id, key: current.key + 1 })); setPage('Test Suites')
@@ -469,13 +542,132 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
       setPage(source.type === 'smokeExecution' ? 'Smoke' : 'Audit')
     } catch { return }
   }
-  function attachSourceDefect(source: DefectSourceRef, defectId: string) {
-    try { setDefects(linkSourceDefect(defects, projectId, source, defectId, defectSources)); return null }
-    catch (error) { return error instanceof Error ? error.message : 'Не вдалося пов’язати дефект.' }
+  async function attachSourceDefect(source: DefectSourceRef, defectId: string) {
+    try {
+      const resolved = resolveDefectSource(projectId, source, defectSources)
+      if (resolved.kind === 'execution' && resolved.execution.result !== 'Fail') throw new Error('Defect можна пов’язати лише зі збереженим Fail.')
+      if (!defects.items.some(item => item.id === defectId && item.projectId === projectId)) throw new Error('Defect поточного проєкту не знайдено.')
+      const link = { projectId, sourceType: source.type, sourceId: source.id, defectId }
+      if (!defects.links.some(item => item.projectId === projectId && item.sourceType === source.type && item.sourceId === source.id && item.defectId === defectId)) await createDefectSourceLinkApi(link)
+      setDefects(current => current.links.some(item => item.projectId === projectId && item.sourceType === source.type && item.sourceId === source.id && item.defectId === defectId) ? current : { ...current, links: [...current.links, link] })
+      return null
+    } catch (error) { return apiFailure(error) }
   }
-
-  function saveRun(run: ChecklistRun) {
-    setChecklistRuns(current => saveChecklistRun(current, projectId, run, checklists))
+  async function saveDefectRemote(draft: import('@/types').Defect) {
+    try {
+      const creating = !defects.items.some(item => item.id === draft.id && item.projectId === projectId)
+      const validated = saveDefect(defects, draft, projectId, currentUser.id, testRunData, projectAreas, projectSetup, defectSources)
+      const candidate = validated.items.find(item => item.id === draft.id && item.projectId === projectId)!
+      const saved = await saveDefectApi(candidate, creating)
+      let link: import('@/types').DefectSourceLink | undefined
+      if (creating && draft.source) {
+        link = { projectId, sourceType: draft.source.type, sourceId: draft.source.id, defectId: saved.id }
+        if (draft.source.type !== 'auditFinding') await createDefectSourceLinkApi(link)
+      }
+      setDefects(current => ({
+        items: [...current.items.filter(item => item.projectId !== projectId || item.id !== saved.id), saved],
+        links: link && !current.links.some(item => item.projectId === link.projectId && item.sourceType === link.sourceType && item.sourceId === link.sourceId && item.defectId === link.defectId)
+          ? [...current.links, link]
+          : current.links,
+      }))
+      if (creating && draft.source) viewDefectSource(draft.source)
+      return saved
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function createRetestRemote(defectId: string, input: import('@/lib/defectRetests').RetestInput, attachments: import('@/types').EvidenceDraft[]) {
+    try {
+      const saved = await createDefectRetestApi(projectId, defectId, input)
+      const next = [...defectRetests, saved]
+      const owner = { projectId, ownerType: 'defectRetest' as const, ownerId: saved.id }
+      const evidence = commitRetestEvidence(evidenceItems, owner, attachments, evidenceOwners, { ...evidenceOwners, retests: next })
+      setDefectRetests(next); setEvidenceItems(evidence)
+      return null
+    } catch (error) { return apiFailure(error) }
+  }
+  async function transitionRetestRemote(defectId: string, action: import('@/components/defects/DefectRetests').RetestAction, retestId?: string) {
+    try {
+      const next = retestTransition(defects, projectId, defectId, action, defectRetests, retestId)
+      const candidate = next.items.find(item => item.id === defectId && item.projectId === projectId)!
+      const saved = await saveDefectApi(candidate, false)
+      setDefects(current => ({ ...current, items: current.items.map(item => item.projectId === projectId && item.id === defectId ? saved : item) }))
+      return null
+    } catch (error) { return apiFailure(error) }
+  }
+  async function saveChecklistRemote(item: Checklist) {
+    try {
+      const creating = !checklists.some(value => value.id === item.id && value.projectId === projectId)
+      if (item.projectId !== projectId || item.areaId && !projectAreas.some(area => area.id === item.areaId && area.projectId === projectId)) throw new Error('Checklist або Area належить іншому проєкту.')
+      const saved = await saveChecklistApi({ ...item, projectId }, creating)
+      setChecklists(current => creating ? [...current, saved] : current.map(value => value.id === saved.id && value.projectId === projectId ? saved : value))
+      return saved
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function importChecklists(items: Checklist[]) {
+    const failures: string[] = []
+    for (const [index, item] of items.entries()) {
+      try { await saveChecklistRemote(item) }
+      catch (error) { failures.push(`Row ${index + 1}: ${apiFailure(error)}`) }
+    }
+    if (failures.length) throw new Error(`Imported ${items.length - failures.length} of ${items.length}. ${failures.join(' ')}`)
+  }
+  async function createChecklistRunRemote(checklistId: string) {
+    try {
+      const saved = await createChecklistRunApi(projectId, checklistId)
+      const items = saved.items.length ? saved.items : (await loadChecklistRunItems(projectId)).filter(item => item.runId === saved.id)
+      const run = { ...saved, items }
+      setChecklistRuns(current => [...current, run])
+      return run
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function saveChecklistRunItemRemote(runId: string, item: ChecklistRun['items'][number]) {
+    try { const saved = await saveChecklistRunItemApi(projectId, item); setChecklistRuns(current => current.map(run => run.projectId === projectId && run.id === runId ? { ...run, items: run.items.map(value => value.id === saved.id ? saved : value) } : run)) }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function completeChecklistRunRemote(runId: string) {
+    try { const saved = await updateChecklistRunApi(projectId, runId, 'Completed'); setChecklistRuns(current => current.map(run => run.projectId === projectId && run.id === runId ? { ...saved, items: saved.items.length ? saved.items : run.items } : run)) }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function saveSmokeSuiteRemote(input: import('@/lib/smoke').SmokeSuiteInput) {
+    try {
+      const existing = smoke.suites.find(item => item.id === input.id && item.projectId === projectId)
+      const validated = saveSmokeSuite(smoke, projectId, input, testCasesByProject[projectId]?.items ?? [])
+      const candidate = validated.suites.find(item => item.id === input.id && item.projectId === projectId)!
+      const saved = await saveSmokeSuiteApi(candidate, !existing)
+      await saveSmokeSuiteLinksApi(projectId, saved.id, [...new Set(input.testCaseIds)])
+      await replaceSmokePrerequisitesApi(projectId, saved.id, input.prerequisites)
+      const [links, prerequisites] = await Promise.all([loadSmokeSuiteLinks(projectId), loadSmokePrerequisites(projectId)])
+      setSmoke(current => ({ ...current, suites: existing ? current.suites.map(item => item.projectId === projectId && item.id === saved.id ? saved : item) : [...current.suites, saved], links: [...current.links.filter(item => item.projectId !== projectId), ...links], prerequisites: [...current.prerequisites.filter(item => item.projectId !== projectId), ...prerequisites] }))
+      return saved
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function deleteSmokeSuiteRemote(id: string) {
+    try {
+      if (smoke.runs.some(item => item.projectId === projectId && item.suiteId === id)) throw new Error('Не можна видалити Suite, що має історію запусків.')
+      await deleteSmokeSuiteApi(projectId, id)
+      setSmoke(current => ({ ...current, suites: current.suites.filter(item => item.projectId !== projectId || item.id !== id), links: current.links.filter(item => item.projectId !== projectId || item.suiteId !== id), prerequisites: current.prerequisites.filter(item => item.projectId !== projectId || item.suiteId !== id) }))
+    }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function createSmokeRunRemote(suiteId: string, input: import('@/lib/smoke').SmokeRunInput) {
+    try {
+      if (!smoke.suites.some(item => item.id === suiteId && item.projectId === projectId)) throw new Error('Smoke Suite поточного проєкту не знайдено.')
+      const created = await createSmokeRunApi(projectId, suiteId, input)
+      const [executions, prerequisites] = await Promise.all([created.executions.length ? Promise.resolve(created.executions) : loadSmokeExecutions(projectId), created.prerequisites.length ? Promise.resolve(created.prerequisites) : loadSmokeRunPrerequisites(projectId)])
+      setSmoke(current => ({ ...current, runs: [...current.runs, created.run], executions: created.executions.length ? [...current.executions, ...executions] : [...current.executions.filter(item => item.projectId !== projectId), ...executions], runPrerequisites: created.prerequisites.length ? [...current.runPrerequisites, ...prerequisites] : [...current.runPrerequisites.filter(item => item.projectId !== projectId), ...prerequisites] }))
+      return created.run
+    } catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function updateSmokeRunStatusRemote(runId: string, status: import('@/types').SmokeRun['status']) {
+    try { const saved = await updateSmokeRunApi(projectId, runId, status); setSmoke(current => ({ ...current, runs: current.runs.map(item => item.projectId === projectId && item.id === runId ? saved : item) })) }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function saveSmokeExecutionRemote(id: string, input: import('@/lib/smoke').SmokeExecutionInput) {
+    try { const saved = await saveSmokeExecutionApi(projectId, id, input); setSmoke(current => ({ ...current, executions: current.executions.map(item => item.projectId === projectId && item.id === id ? saved : item) })); return saved }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
+  }
+  async function saveSmokePrerequisiteRemote(item: import('@/types').SmokeRunPrerequisite) {
+    try { const saved = await saveSmokeRunPrerequisiteApi(projectId, item); setSmoke(current => ({ ...current, runPrerequisites: current.runPrerequisites.map(value => value.projectId === projectId && value.id === item.id ? saved : value) })) }
+    catch (error) { throw new Error(apiFailure(error), { cause: error }) }
   }
 
 
@@ -508,41 +700,24 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
         </div>
         {backendError && <p role="alert" className="auth-error api-status">{backendError}</p>}
         {projectDataLoading && project && <p role="status" className="muted api-status">Завантаження даних проєкту…</p>}
-        {projectsLoading ? (
-          <main className="smoke-app"><p role="status" className="muted">Завантаження проєктів…</p></main>
+        {projectsLoading || projectDataLoading && project ? (
+          <main className="smoke-app"><p role="status" className="muted">{projectsLoading ? 'Завантаження проєктів…' : 'Завантаження даних проєкту…'}</p></main>
         ) : page === 'Settings' && project ? (
-          <ProjectSettingsPage key={project.id} project={project} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} data={projectSetup} onChange={setProjectSetup} onAreaSave={saveArea} onAreaRemove={removeArea} onTypeSave={saveType} onTypeRemove={removeType} onDeleteProject={() => { setDeletingProjectError(''); setDeletingProject(project) }} />
+          <ProjectSettingsPage key={project.id} project={project} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} data={projectSetup} onSetupSave={saveProjectSetup} onSetupDelete={deleteProjectSetup} onAreaSave={saveArea} onAreaRemove={removeArea} onTypeSave={saveType} onTypeRemove={removeType} onDeleteProject={() => { setDeletingProjectError(''); setDeletingProject(project) }} />
         ) : page === 'Smoke' && project ? (
-          <SmokePage initialExecutionId={followupTarget.source?.type === "smokeExecution" ? followupTarget.source.id : undefined} setup={projectSetup} key={project.id + followupTarget.key} projectId={project.id} data={smoke} onChange={setSmoke} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} userId={currentUser.id} />
+          <SmokePage initialExecutionId={followupTarget.source?.type === "smokeExecution" ? followupTarget.source.id : undefined} setup={projectSetup} key={project.id + followupTarget.key} projectId={project.id} data={smoke} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} userId={currentUser.id} onSuiteSave={saveSmokeSuiteRemote} onSuiteDelete={deleteSmokeSuiteRemote} onRunCreate={createSmokeRunRemote} onRunStatus={updateSmokeRunStatusRemote} onExecutionSave={saveSmokeExecutionRemote} onPrerequisiteSave={saveSmokePrerequisiteRemote} />
         ) : page === 'Test Suites' && project ? (
           <TestSuitesPage key={`${project.id}-${suiteTarget.key}`} initialId={suiteTarget.id} projectId={project.id} data={testSuites} cases={testCasesByProject[project.id]?.items ?? []} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} runs={testRunData} onCreateRun={createRunFromSuite} onOpenRun={openSuiteRun} onDelete={removeTestSuite} onSave={saveTestSuiteRemote} />
         ) : page === 'Coverage' && project ? (
           <CoveragePage key={project.id} projectId={project.id} requirements={requirementsByProject[project.id]?.items ?? []} cases={testCasesByProject[project.id]?.items ?? []} links={requirementLinks} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} executions={testRunData.executions} onLinksChange={changeCoverage} />
         ) : page === 'Defects' && project ? (
-          <DefectsPage retests={defectRetests} cases={Object.values(testCasesByProject).flatMap(state => state.items)} types={testCasesByProject[project.id]?.types ?? []} onRetest={(id, input, attachments) => {
-            try { const next = saveRetest(defectRetests, project.id, id, input, defects.items, Object.values(testCasesByProject).flatMap(state => state.items), testRunData, projectSetup, projectAreas, testCasesByProject[project.id]?.types ?? [], currentUser.id, smoke)
-              const owner = { projectId: project.id, ownerType: 'defectRetest' as const, ownerId: next[next.length - 1].id }
-              const evidence = commitRetestEvidence(evidenceItems, owner, attachments, evidenceOwners, { ...evidenceOwners, retests: next })
-              setDefectRetests(next); setEvidenceItems(evidence); return null }
-            catch (error) { return error instanceof Error ? error.message : 'Не вдалося зберегти Retest.' }
-          }} onRetestTransition={(id, action, retestId) => {
-            try { setDefects(retestTransition(defects, project.id, id, action, defectRetests, retestId)); return null }
-            catch (error) { return error instanceof Error ? error.message : 'Не вдалося змінити статус.' }
-          }} setup={projectSetup} key={`${project.id}-${defectTarget.key}`} projectId={project.id} items={defects.items} areas={projectAreas} runs={testRunData} initialId={defectTarget.id} sourceRef={defectTarget.source} onSave={draft => {
-            try {
-              setDefects(saveDefect(defects, draft, project.id, currentUser.id, testRunData, projectAreas, projectSetup, defectSources))
-              if (draft.source && !defects.items.some(item => item.id === draft.id)) viewDefectSource(draft.source)
-              return null
-            } catch (error) { return error instanceof Error ? error.message : 'Не вдалося зберегти дефект.' }
-          }} />
+          <DefectsPage retests={defectRetests} cases={Object.values(testCasesByProject).flatMap(state => state.items)} types={testCasesByProject[project.id]?.types ?? []} onRetest={createRetestRemote} onRetestTransition={transitionRetestRemote} setup={projectSetup} key={`${project.id}-${defectTarget.key}`} projectId={project.id} items={defects.items} areas={projectAreas} runs={testRunData} initialId={defectTarget.id} sourceRef={defectTarget.source} onSave={saveDefectRemote} />
         ) : page === 'Test Runs' && project ? (
-          <TestRunsPage setup={projectSetup} suites={testSuites} onViewSuite={openTestSuite} initialRunId={executionTarget.runId} initialCreateSuiteId={executionTarget.sourceSuiteId} key={`${project.id}-${executionTarget.key}`} initialExecutionId={executionTarget.id} defects={defects} onCreateDefect={id => createDefectFromSource({ type: "testExecution", id })} onViewDefect={openDefect} onLinkDefect={(id, defectId) => attachSourceDefect({ type: "testExecution", id }, defectId)} projectId={project.id} userId={currentUser.id} data={testRunData} onChange={setTestRunData} cases={testCasesByProject[project.id]?.items ?? []} plans={testPlans} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} />
+          <TestRunsPage setup={projectSetup} suites={testSuites} onViewSuite={openTestSuite} initialRunId={executionTarget.runId} initialCreateSuiteId={executionTarget.sourceSuiteId} key={`${project.id}-${executionTarget.key}`} initialExecutionId={executionTarget.id} defects={defects} onCreateDefect={id => createDefectFromSource({ type: "testExecution", id })} onViewDefect={openDefect} onLinkDefect={(id, defectId) => attachSourceDefect({ type: "testExecution", id }, defectId)} projectId={project.id} userId={currentUser.id} data={testRunData} onCreateRun={createTestRunRemote} onRunStatus={updateTestRunStatus} onExecutionSave={saveTestExecutionRemote} cases={testCasesByProject[project.id]?.items ?? []} plans={testPlans} areas={projectAreas} types={testCasesByProject[project.id]?.types ?? []} />
         ) : page === 'Test Plan' && project ? (
           <TestPlanPage key={project.id} projectId={project.id} plans={testPlans} onSave={savePlan} onDelete={removePlan} />
         ) : page === 'Checklists' && project ? (
-          <ChecklistsPage key={project.id} projectId={project.id} items={checklists} runs={checklistRuns} areas={projectAreas} onAreaSave={saveArea} onAreaRemove={removeArea} onRun={saveRun} onSave={item => {
-            if (item.projectId === project.id) setChecklists(current => current.some(value => value.id === item.id && value.projectId === project.id) ? current.map(value => value.id === item.id && value.projectId === project.id ? item : value) : [...current, item])
-          }} />
+          <ChecklistsPage key={project.id} projectId={project.id} items={checklists} runs={checklistRuns} areas={projectAreas} onAreaSave={saveArea} onAreaRemove={removeArea} onSave={saveChecklistRemote} onImport={importChecklists} onRunCreate={createChecklistRunRemote} onRunItemSave={saveChecklistRunItemRemote} onRunComplete={completeChecklistRunRemote} />
         ) : page === 'Test Cases' && project ? (
           <TestCasesPage key={project.id} projectId={project.id} areaInUse={areaInUse} data={{ ...(testCasesByProject[project.id] ?? emptyTestCasesProject()), areas: projectAreas.filter(area => area.projectId === project.id) }} requirements={requirementView().items} onRequirementsChange={(id, ids) => changeCoverage('testCase', id, ids)} onChange={changeTestCases} onSaveItem={saveTestCaseRemote} onDeleteItem={deleteTestCaseRemote} onImportItems={importTestCases} onAreaSave={saveArea} onAreaRemove={removeArea} onTypeSave={saveType} onTypeRemove={removeType} />
         ) : page === 'Requirements' && project ? (
