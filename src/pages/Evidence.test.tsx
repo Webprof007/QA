@@ -43,7 +43,7 @@ describe('Shared owner Evidence integration', () => {
     await screen.findByText('Completed', { selector: 'span' })
     expect(within(section()).queryByRole('button', { name: 'Add file' })).toBeNull()
     expect(within(section()).queryByRole('button', { name: /Remove/ })).toBeNull()
-    expect(within(section()).getByRole('link', { name: 'Open link' }).getAttribute('rel')).toBe('noopener noreferrer')
+    expect(within(section()).getByRole('link', { name: 'Recording' }).getAttribute('rel')).toBe('noopener noreferrer')
     expect(URL.revokeObjectURL).not.toHaveBeenCalled()
   })
   it('keeps defect evidence independent, rejects unsafe links and removes only attachment', async () => {
@@ -96,5 +96,11 @@ describe('Shared owner Evidence integration', () => {
     expect(screen.getByRole('heading', { name: 'macOS Screenshot.png' })).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+  it('accepts a dropped file through the same upload flow', async () => {
+    await renderAuthenticatedApp(); click('Defects / Дефекти'); click('Open BUG-003')
+    const file = new File(['proof'], 'dropped.log', { type: 'text/plain' })
+    fireEvent.drop(within(section()).getByLabelText('Upload evidence files'), { dataTransfer: { files: [file] } })
+    await within(section()).findByText('dropped.log')
   })
 })

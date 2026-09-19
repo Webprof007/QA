@@ -15,7 +15,9 @@ it('navigates through QA sections with a single authenticated account', async ()
   const pages = ['Requirements / Вимоги', 'Test Plan / План тестування', 'Coverage / Покриття', 'Test Cases / Тест-кейси', 'Test Suites / Набори тестів', 'Checklists / Чеклісти', 'Smoke / Смоук-тестування', 'Test Runs / Запуски тестів', 'Defects / Дефекти', 'Audit / Аудит', 'Settings / Налаштування']
   expect(nav.getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(pages)
   expect([...screen.getByRole('navigation').querySelectorAll('.sidebar-group')].map(group => group.querySelectorAll('button').length)).toEqual([3, 4, 2, 1, 1])
-  for (const name of pages) {
+  const audit = nav.getByRole('button', { name: 'Audit / Аудит' })
+  expect(audit.hasAttribute('disabled')).toBe(true)
+  for (const name of pages.filter(item => item !== 'Audit / Аудит')) {
     const button = nav.getByRole('button', { name })
     const [label, sublabel] = name.split(' / ')
     expect(button.querySelector('.sidebar-item-label')?.textContent).toBe(label)

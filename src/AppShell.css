@@ -106,6 +106,7 @@
   background: var(--muted);
   font-weight: 600;
 }
+.sidebar-link:disabled { color: var(--muted-foreground); opacity: .55; cursor: not-allowed; }
 
 .sidebar-group-label {
   padding: 0 10px;

@@ -31,7 +31,7 @@ export function AppSidebar({
   onNavigate,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false)
-  function navigationItem(item: Page) {
+  function navigationItem(item: Page, disabled = false) {
     const { label, sublabel } = navigationLabels[item]
     return (
       <Button
@@ -40,6 +40,7 @@ export function AppSidebar({
         className="sidebar-link"
         aria-label={`${label} / ${sublabel}`}
         aria-current={page === item ? 'page' : undefined}
+        disabled={disabled}
         onClick={() => onNavigate(item)}
       >
         <span className="sidebar-item-labels">
@@ -96,7 +97,7 @@ export function AppSidebar({
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">ANALYSIS</p>
-          {navigationItem('Audit')}
+          {navigationItem('Audit', true)}
         </div>
         <div className="sidebar-group">
           <p className="sidebar-group-label">PROJECT</p>
