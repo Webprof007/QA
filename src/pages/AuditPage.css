@@ -29,7 +29,7 @@
 .audit-severity-high { color: #b33838; }
 .audit-severity-medium { color: #936019; }
 .audit-severity-low { color: var(--muted-foreground); }
-.audit-workspace { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; border-left: 1px solid var(--border); padding: 0 4px 0 28px; min-width: 0; }
+.audit-workspace { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; overflow-x: hidden; border-left: 1px solid var(--border); padding: 0 4px 0 28px; min-width: 0; }
 .audit-workspace-form { display: grid; gap: 18px; }
 .audit-workspace-form > button { justify-self: start; }
 .audit-field-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }

@@ -5,4 +5,7 @@
 .evidence-info small { color: var(--muted-foreground); font-size: 11px; }
 .evidence-info a { text-decoration: underline; }
 .evidence-thumbnail { width: 64px; height: 48px; object-fit: cover; border-radius: 4px; }
+.evidence-preview-trigger { display: block; cursor: zoom-in; border: 0; padding: 0; background: transparent; }
 .evidence-video { width: 180px; max-width: 100%; max-height: 110px; }
+.evidence-preview-dialog { width: min(960px, calc(100vw - 32px)); max-width: 960px; max-height: calc(100dvh - 32px); }
+.evidence-preview-image { display: block; width: auto; max-width: 100%; max-height: calc(100dvh - 150px); margin-inline: auto; object-fit: contain; }

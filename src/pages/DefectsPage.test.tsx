@@ -21,8 +21,9 @@ async function createRun() { click('Test Runs / Запуски тестів'); c
 describe('Defects workspace', () => {
   it('shows status badges and opens lifecycle actions from table rows', async () => {
     await renderAuthenticatedApp(); click('Defects / Дефекти')
-    expect(screen.getByText('New / Новий').classList.contains('defect-status-badge')).toBe(true)
-    click('Open Defect BUG-001'); await waitFor(() => expect(screen.getAllByText('Open / Відкритий').some(item => item.classList.contains('defect-status-badge'))).toBe(true))
+    expect(screen.getByText('New').classList.contains('defect-status-badge')).toBe(true)
+    expect(screen.getByText('Новий').classList.contains('defect-status-badge')).toBe(false)
+    click('Open Defect BUG-001'); await waitFor(() => expect(screen.getAllByText('Open').some(item => item.classList.contains('defect-status-badge'))).toBe(true))
     click('Mark Ready for Retest BUG-002'); await waitFor(() => expect(screen.getAllByRole('button', { name: 'Retest BUG-002' })).toHaveLength(1))
     click('Retest BUG-002'); expect(screen.getByRole('form', { name: 'Retest form' })).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Retest #1' })).toBeNull()
   })
@@ -43,8 +44,8 @@ describe('Defects workspace', () => {
     change('Area', option.value); click('Save Defect'); expect(await within(defectPanel()).findByText('Created by: 42')).toBeTruthy(); expect(within(defectPanel()).getByText('BUG-004')).toBeTruthy()
     const link = within(defectPanel()).getByRole('link', { name: 'Open external task' }); expect(link.getAttribute('rel')).toBe('noopener noreferrer')
     click('Edit Defect'); change('Title', 'Discard edit'); click('Cancel'); expect(within(defectPanel()).getByRole('heading', { name: 'Manual bug' })).toBeTruthy()
-    click('Edit Defect'); change('Status', 'Closed'); click('Save Defect'); await within(defectPanel()).findByText('Closed / Закритий'); click('Edit Defect'); change('Status', 'Open'); change('Title', 'Updated manual bug'); click('Save Defect'); await within(defectPanel()).findByRole('heading', { name: 'Updated manual bug' })
-    expect(within(defectPanel()).getByText('BUG-004')).toBeTruthy(); expect(within(defectPanel()).getByText('Open / Відкритий')).toBeTruthy()
+    click('Edit Defect'); change('Status', 'Closed'); click('Save Defect'); await within(defectPanel()).findByText('Closed'); click('Edit Defect'); change('Status', 'Open'); change('Title', 'Updated manual bug'); click('Save Defect'); await within(defectPanel()).findByRole('heading', { name: 'Updated manual bug' })
+    expect(within(defectPanel()).getByText('BUG-004')).toBeTruthy(); expect(within(defectPanel()).getByText('Open')).toBeTruthy(); expect(within(defectPanel()).getByText('Відкритий')).toBeTruthy()
     click('Close defect'); await filter('Area', option.textContent!); expect(rows()).toHaveLength(1)
     await project('QP Notes'); expect(rows()).toHaveLength(0); click('+ Add defect'); change('Title', 'QP bug'); click('Save Defect'); expect(await within(defectPanel()).findByText('Created by: 42')).toBeTruthy(); expect(within(defectPanel()).getByText('BUG-001')).toBeTruthy()
     await project('Voicli'); expect(screen.queryByText('QP bug')).toBeNull()

@@ -1,26 +1,30 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within, act } from '@testing-library/react'
+import { cleanup, fireEvent, screen, within, act, waitFor } from '@testing-library/react'
 import { renderAuthenticatedApp } from '@/test/renderAuthenticatedApp'
 import { setFieldValue } from '@/test/fields'
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   let id = 0
   vi.stubGlobal('URL', class extends URL { static createObjectURL = vi.fn(() => 'blob:evidence-' + ++id); static revokeObjectURL = vi.fn() })
+  vi.stubGlobal('Image', class { onload: (() => void) | null = null; onerror: (() => void) | null = null; set src(_value: string) { queueMicrotask(() => this.onerror?.()) } })
 })
 afterEach(async () => { cleanup(); await Promise.resolve(); vi.unstubAllGlobals() })
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const change = (name: string, value: string) => setFieldValue(screen.getByLabelText(name), value)
 const section = () => screen.getByRole('region', { name: 'Attachments / Evidence' })
-function addLink(root: HTMLElement, name: string, url = 'https://example.com/proof') {
+async function addLink(root: HTMLElement, name: string, url = 'https://example.com/proof') {
   const ui = within(root)
   fireEvent.click(ui.getByRole('button', { name: 'Add link' }))
   fireEvent.change(ui.getByLabelText('Link name'), { target: { value: name } })
   fireEvent.change(ui.getByLabelText('Evidence URL'), { target: { value: url } })
   fireEvent.click(ui.getByRole('button', { name: 'Save link' }))
+  await waitFor(() => expect(ui.getByText(name)).toBeTruthy())
 }
-function addFile(root: HTMLElement, name: string) {
-  fireEvent.change(within(root).getByLabelText('Evidence files'), { target: { files: [new File(['proof'], name, { type: 'text/plain' })] } })
+async function addFile(root: HTMLElement, name: string, type = 'text/plain') {
+  const ui = within(root)
+  fireEvent.change(ui.getByLabelText('Evidence files'), { target: { files: [new File(['proof'], name, { type })] } })
+  await waitFor(() => expect(ui.getByText(name)).toBeTruthy())
 }
 describe('Shared owner Evidence integration', () => {
   it.each(['test', 'smoke'])('keeps %s execution files across navigation and locks evidence on completion', async mode => {
@@ -30,8 +34,8 @@ describe('Shared owner Evidence integration', () => {
     } else { click('Open SMK-001'); click('Run Smoke'); click('Create Draft') }
     await screen.findByText('Draft', { selector: 'span' })
     click('TC-001')
-    addFile(section(), 'execution.log')
-    addLink(section(), 'Recording')
+    await addFile(section(), 'execution.log')
+    await addLink(section(), 'Recording')
     expect(within(section()).getAllByText(/Created by: 42/)).toHaveLength(2)
     click('Next'); expect(within(section()).queryByText('execution.log')).toBeNull()
     click('Previous'); expect(within(section()).getByText('execution.log')).toBeTruthy()
@@ -44,29 +48,29 @@ describe('Shared owner Evidence integration', () => {
   })
   it('keeps defect evidence independent, rejects unsafe links and removes only attachment', async () => {
     await renderAuthenticatedApp(); click('Defects / Дефекти'); click('Open BUG-003')
-    addLink(section(), 'Unsafe', 'javascript:alert(1)')
-    expect(within(section()).getByRole('alert')).toBeTruthy()
+    await addLink(section(), 'Unsafe', 'javascript:alert(1)').catch(() => undefined)
+    await waitFor(() => expect(within(section()).getByRole('alert')).toBeTruthy())
     expect(within(section()).queryByRole('link')).toBeNull()
     click('Cancel link')
-    addFile(section(), 'defect.log')
+    await addFile(section(), 'defect.log')
     click('Remove defect.log')
     await act(async () => { await Promise.resolve() })
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:evidence-1')
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Retest' })).toBeTruthy()
-    addLink(section(), 'Incident')
+    await addLink(section(), 'Incident')
     click('Test Cases / Тест-кейси'); click('Defects / Дефекти'); click('Open BUG-003')
     expect(within(section()).getByText('Incident')).toBeTruthy()
   })
   it('commits retest attachments with Save, freezes history and releases cancelled draft files', async () => {
     await renderAuthenticatedApp(); click('Defects / Дефекти'); click('Open BUG-003')
-    addLink(section(), 'Incident only')
+    await addLink(section(), 'Incident only')
     click('Retest')
     const draftSection = () => screen.getAllByRole('region', { name: 'Attachments / Evidence' }).find(root => !within(root).queryByText('Incident only'))!
-    addFile(draftSection(), 'discard.log'); click('Cancel Retest')
+    await addFile(draftSection(), 'discard.log'); click('Cancel Retest')
     await act(async () => { await Promise.resolve() })
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:evidence-1')
     click('Retest'); change('Environment / Середовище', 'env-voicli-staging'); change('Result', 'Pass')
-    addFile(draftSection(), 'retest.log'); addLink(draftSection(), 'Fixed proof')
+    await addFile(draftSection(), 'retest.log'); await addLink(draftSection(), 'Fixed proof')
     click('Save Retest'); fireEvent.click(await screen.findByRole('button', { name: 'Retest #1' }))
     const detail = within(screen.getByRole('region', { name: 'Retest details' }))
     expect(detail.getByText('retest.log')).toBeTruthy()
@@ -75,7 +79,22 @@ describe('Shared owner Evidence integration', () => {
     expect(detail.queryByRole('button', { name: 'Add file' })).toBeNull()
     expect(detail.queryByRole('button', { name: /Remove/ })).toBeNull()
     await act(async () => { await Promise.resolve() })
-    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:evidence-2')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:evidence-2')
     click('Close Defect'); expect(detail.getByText('retest.log')).toBeTruthy()
+  })
+  it('uploads a clipboard PNG without intercepting text paste and opens protected image preview', async () => {
+    await renderAuthenticatedApp(); click('Defects / Дефекти'); click('Open BUG-003')
+    const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0])], 'macOS Screenshot.png', { type: 'image/png' })
+    click('Add link')
+    fireEvent.paste(screen.getByLabelText('Link name'), { clipboardData: { items: [{ kind: 'file', type: 'image/png', getAsFile: () => png }] } })
+    expect(within(section()).queryByText('macOS Screenshot.png')).toBeNull()
+    click('Cancel link')
+    fireEvent.paste(document, { clipboardData: { items: [{ kind: 'file', type: 'image/png', getAsFile: () => png }] } })
+    await within(section()).findByText('macOS Screenshot.png')
+    click('Preview macOS Screenshot.png')
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'macOS Screenshot.png' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 })

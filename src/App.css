@@ -178,6 +178,7 @@
   top: 20px;
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
 }
 .panel-heading {
@@ -196,6 +197,36 @@
   font-weight: 600;
   margin-top: 5px;
   overflow-wrap: anywhere;
+}
+.tc-panel > .panel-heading,
+.workspace-panel > .panel-heading,
+.audit-workspace > .panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  background: var(--background);
+  padding: 8px 10px 12px;
+}
+.tc-panel > .panel-heading > :first-child,
+.workspace-panel > .panel-heading > :first-child,
+.audit-workspace > .panel-heading > :first-child {
+  min-width: 0;
+}
+.tc-panel > .panel-heading h2,
+.workspace-panel > .panel-heading h2,
+.audit-workspace > .panel-heading h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tc-panel > .panel-heading .tc-panel-actions,
+.workspace-panel > .panel-heading .tc-panel-actions,
+.audit-workspace > .panel-heading .tc-panel-actions {
+  flex-wrap: nowrap;
+  align-items: center;
 }
 .form-heading {
   margin-bottom: 16px;

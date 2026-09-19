@@ -41,7 +41,7 @@
 .table-row-actions > button:not([data-slot='dropdown-menu-trigger']) { max-width: 190px; height: auto; min-height: 28px; padding-block: 4px; white-space: normal; text-align: left; line-height: 1.2; }
 .tc-open { text-align: left; cursor: pointer; overflow-wrap: anywhere; font-family: monospace; }
 .tc-open:focus-visible { outline: 2px solid var(--ring); }
-.tc-panel { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; border-left: 1px solid var(--border); padding: 0 4px 0 24px; overflow-wrap: anywhere; }
+.tc-panel { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; overflow-x: hidden; border-left: 1px solid var(--border); padding: 0 4px 0 24px; overflow-wrap: anywhere; }
 .tc-form, .tc-section, .tc-step { display: grid; gap: 12px; }
 .tc-form { gap: 22px; }
 .tc-section h3 { font-size: 14px; font-weight: 600; }

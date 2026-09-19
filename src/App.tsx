@@ -21,7 +21,7 @@ import { TestCasesPage } from '@/pages/TestCasesPage'
 import { emptyTestCasesProject } from '@/data/testCasesMockData'
 import { createEvidenceUrls } from '@/lib/evidenceUrls'
 import { EvidenceContext } from '@/components/evidence/evidenceContext'
-import { evidenceOwnerStatus, ownerEvidence, replaceEvidence, type EvidenceOwners } from '@/lib/evidence'
+import { evidenceOwnerStatus, ownerEvidence, replaceEvidence, safeEvidenceUrl, type EvidenceOwners } from '@/lib/evidence'
 import type { EvidenceItem } from '@/types'
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
 import { AppSidebar } from '@/components/AppSidebar'
@@ -601,7 +601,9 @@ function QAApp({ currentUser, onLogout, onUnauthorized }: { currentUser: AuthUse
   }
   async function createEvidenceLinkRemote(owner: import('@/types').EvidenceOwner, name: string, url: string) {
     if (owner.ownerType === 'auditFinding' || owner.projectId !== projectId || !evidenceOwnerStatus(owner, evidenceOwners)?.editable) throw new Error('Власник вкладення недоступний або вже read-only.')
-    const saved = await createEvidenceLink(owner, name, url)
+    const safe = safeEvidenceUrl(url.trim(), 'link')
+    if (!name.trim() || !safe) throw new Error('Вкажіть назву та коректне посилання http:// або https://.')
+    const saved = await createEvidenceLink(owner, name.trim(), safe)
     setEvidenceItems(current => [...current.filter(item => item.id !== saved.id), saved])
   }
   async function removeEvidenceRemote(owner: import('@/types').EvidenceOwner, evidenceId: string) {

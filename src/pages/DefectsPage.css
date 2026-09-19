@@ -1,0 +1,23 @@
+.defects-page .tc-list { overflow-x: visible; }
+.defects-table-scroll { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.defects-page .defects-table { min-width: 1120px; table-layout: fixed; }
+.defects-table col.id { width: 88px; }
+.defects-table col.title { width: 250px; }
+.defects-table col.area { width: 128px; }
+.defects-table col.severity { width: 104px; }
+.defects-table col.priority { width: 98px; }
+.defects-table col.status { width: 152px; }
+.defects-table col.build { width: 126px; }
+.defects-table col.updated { width: 108px; }
+.defects-table col.actions { width: 116px; }
+.defects-table td, .defects-table th { overflow-wrap: normal; word-break: normal; }
+.defects-table td:nth-child(1), .defects-table td:nth-child(3), .defects-table td:nth-child(4), .defects-table td:nth-child(5), .defects-table td:nth-child(7), .defects-table td:nth-child(8),
+.defects-table th:nth-child(1), .defects-table th:nth-child(3), .defects-table th:nth-child(4), .defects-table th:nth-child(5), .defects-table th:nth-child(7), .defects-table th:nth-child(8) { white-space: nowrap; }
+.defects-table td:nth-child(2) { white-space: normal; overflow-wrap: break-word; }
+.defects-table .table-row-actions { flex-wrap: nowrap; }
+.defects-table .table-row-actions > button { min-width: 0; padding-inline: 7px; white-space: nowrap; }
+.defect-status-display { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; max-width: 100%; }
+.defect-status-display .domain-badge { white-space: nowrap; }
+.defect-status-display small { color: var(--muted-foreground); font-size: 10px; line-height: 1.2; white-space: nowrap; }
+.defect-panel-title { min-width: 0; }
+.defect-panel .panel-heading .tc-panel-actions button:first-child { white-space: nowrap; }

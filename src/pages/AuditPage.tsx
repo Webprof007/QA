@@ -4,6 +4,7 @@ import { AddEntityButton } from '@/components/AddEntityButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { X } from 'lucide-react'
 import { AuditFindingsPage, type AuditFindingsProps } from './AuditFindingsPage'
 import type { Audit, AuditCheck, AuditState } from '@/types'
 import { resultLabel } from '@/lib/domainLabels'
@@ -73,7 +74,7 @@ export function AuditPage({ data, onSaveAudit, onTransition, onSaveCheck, onDele
       </section>
       <AuditFindingsPage {...findingProps} typeInUse={id => data.audits.some(item => item.projectId === projectId && item.typeId === id)} key={selected.id + selected.status} auditId={selected.id} readOnly={readOnly} items={data.findings} onDeleteItem={id => onDeleteFinding(selected.id, id)} />
     </>}
-    {draft && <aside className="audit-workspace audit-session-editor" aria-label="Audit editor"><h2>{draft.id ? 'Edit Audit' : 'New Audit'}</h2><form className="audit-workspace-form" onSubmit={event => { event.preventDefault(); const failure = onSaveAudit(draft); setError(failure ?? ''); if (!failure) setDraft(null) }}>
+    {draft && <aside className="audit-workspace audit-session-editor" aria-label="Audit editor"><div className="panel-heading"><h2>{draft.id ? 'Edit Audit' : 'New Audit'}</h2><Button type="button" variant="ghost" size="icon" aria-label="Close audit editor" title="Close audit editor" onClick={() => setDraft(null)}><X /></Button></div><form className="audit-workspace-form" onSubmit={event => { event.preventDefault(); const failure = onSaveAudit(draft); setError(failure ?? ''); if (!failure) setDraft(null) }}>
       {fields.map(([key, label]) => <label key={key} className="field">{label}{key === 'title' || key === 'startDate' || key === 'endDate' ? <Input required={key === 'title'} type={key === 'title' ? 'text' : 'date'} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <Textarea value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} />}</label>)}
       <label className="field">Audit type<select className="audit-select" value={draft.typeId} onChange={event => setDraft({ ...draft, typeId: event.target.value })}><option value="">—</option>{types.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
       <Button type="submit">Save Audit</Button><Button type="button" variant="ghost" onClick={() => setDraft(null)}>Cancel Audit</Button>
